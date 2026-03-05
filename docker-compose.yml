@@ -1,0 +1,12 @@
+services:
+  openclaw:
+    build:
+      context: ./openclaw
+    environment:
+      # XQuartz display on macOS. Adjust the display number (e.g., :1, :2)
+      # to match your XQuartz configuration shown by `echo $DISPLAY`.
+      - DISPLAY=host.docker.internal:0
+    volumes:
+      - type: bind
+        source: ./data
+        target: /data

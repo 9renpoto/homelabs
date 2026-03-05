@@ -1,17 +1,45 @@
-# Title
+# homelabs
 
-This is an example file with default selections.
+macOS 上で OpenClaw の実行環境をテストするための Docker 構成を管理するリポジトリです。
+将来的には Linux 環境上でのホストを予定しており、Docker 環境を基盤として動作確認ができることを目指しています。
+
+## Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [XQuartz](https://www.xquartz.org/) (macOS で GUI を表示する場合)
+- OpenClaw のゲームデータ (`CLAW.REZ`) — オリジナルの Captain Claw から入手してください
 
 ## Install
 
 ```sh
-
+git clone https://github.com/9renpoto/homelabs.git
+cd homelabs
 ```
 
 ## Usage
 
-```sh
+### ゲームデータの配置
 
+`data/` ディレクトリを作成し、`CLAW.REZ` を配置してください。
+
+```sh
+mkdir -p data
+cp /path/to/CLAW.REZ data/
+```
+
+### macOS で GUI を使って起動する
+
+XQuartz を起動し、X11 のネットワーク接続を許可します。
+
+```sh
+open -a XQuartz
+xhost +localhost
+```
+
+Docker コンテナをビルドして起動します。
+
+```sh
+docker compose up --build
 ```
 
 ## Dotfiles
