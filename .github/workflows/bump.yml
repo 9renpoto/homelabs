@@ -1,0 +1,83 @@
+name: Bump version
+
+on:
+  workflow_dispatch:
+    inputs:
+      semver:
+        description: "Which SemVer"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+  workflow_call:
+    inputs:
+      semver:
+        description: The image_name to build for.
+        required: true
+        type: string
+jobs:
+  bump:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: generate new version and save to env variable
+        uses: actions/github-script@v8
+        id: github_releases
+        with:
+          result-encoding: string
+          script: |
+            const release = await github.rest.repos.getLatestRelease(
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              }
+            );
+            return release.data.tag_name;
+
+      - name: semver
+        id: get_version
+        run: echo "NEW_VERSION=$(docker run --rm alpine/semver semver -c -i ${{ inputs.semver }} ${{ steps.github_releases.outputs.result }})" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        uses: actions/github-script@v8
+        id: get_release_note
+        env:
+          NEW_VERSION: ${{steps.get_version.outputs.NEW_VERSION}}
+        with:
+          result-encoding: string
+          script: |
+            const notes = await github.rest.repos.generateReleaseNotes(
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: `v${process.env.NEW_VERSION}`,
+                previous_tag_name: '${{ steps.github_releases.outputs.result }}',
+              }
+            );
+            return notes.data.body;
+
+      - run: |
+          cat << EOF >> new
+          ## v${{ steps.get_version.outputs.NEW_VERSION }} ($(date '+%Y-%m-%d'))
+          ${{ steps.get_release_note.outputs.result }}
+          EOF
+      - run: cat new ./CHANGELOG.md > temp
+      - run: mv temp ./CHANGELOG.md
+      - run: rm new
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          base: main
+          branch: release
+          commit-message: "bump: v${{ steps.get_version.outputs.NEW_VERSION }}"
+          body: ${{ steps.get_release_note.outputs.result  }}
+          title: "chore: bump v${{ steps.get_version.outputs.NEW_VERSION }}"
+          labels: |
+            documentation
+          draft: true
+          milestone: "v${{ steps.get_version.outputs.NEW_VERSION }}"

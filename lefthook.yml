@@ -1,0 +1,6 @@
+pre-commit:
+  commands:
+    hadolint:
+      run: hadolint .devcontainer/Dockerfile
+    typos:
+      run: typos
