@@ -9,6 +9,7 @@ Docker configuration for running OpenClaw (a Captain Claw reimplementation) in a
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [dotenvx](https://dotenvx.com/) (`brew install dotenvx/brew/dotenvx`)
 - OpenClaw game data (`CLAW.REZ`) — obtain from the original Captain Claw disc or digital release
 
 ## Install
@@ -17,6 +18,31 @@ Docker configuration for running OpenClaw (a Captain Claw reimplementation) in a
 git clone https://github.com/9renpoto/homelabs.git
 cd homelabs
 ```
+
+### Environment variables (Discord)
+
+Manage Discord secrets with `dotenvx`:
+
+```sh
+cp .env.example .env
+```
+
+Then edit `.env` and set:
+
+- `DISCORD_BOT_TOKEN`
+
+OpenClaw native Discord channel is enabled automatically when `DISCORD_BOT_TOKEN` is present.
+
+Encrypt `.env` before committing:
+
+```sh
+dotenvx encrypt
+```
+
+Rules:
+
+- `.env` can be committed only after `dotenvx encrypt`
+- `.env.keys` must stay local and must never be committed
 
 ## Usage
 
@@ -31,28 +57,32 @@ cp /path/to/CLAW.REZ data/
 
 ### Start (Headless)
 
-Build and run the container:
+Build and run all services (`openclaw`, `ollama`):
 
 ```sh
-docker compose up --build
+dotenvx run -- docker compose up --build
 ```
 
 ### Ollama setup for OpenClaw
 
-The local model (`qwen2.5:0.5b`) is prepared automatically at startup by the custom Docker image entrypoints when you run:
+OpenClaw runtime defaults are managed declaratively in:
+
+- `openclaw/openclaw.managed.json`
+
+At container startup, this file is merged into `state/openclaw/openclaw.json`.
+That keeps source-controlled defaults while preserving runtime-generated fields.
+
+Apply current declarative config:
 
 ```sh
-docker compose up -d
+dotenvx run -- docker compose up -d
 ```
 
-If you want to test a different local model, set `OLLAMA_MODEL` when starting Compose:
+If you update `openclaw/openclaw.managed.json`, rebuild `openclaw` to apply changes:
 
 ```sh
-OLLAMA_MODEL=qwen2.5:3b docker compose up -d
+dotenvx run -- docker compose up -d --build openclaw
 ```
-
-OpenClaw is configured automatically on startup (provider settings + default model selection).
-For faster local responses in the first step, bootstrap prompt sizes are also reduced (`bootstrapMaxChars=3000`, `bootstrapTotalMaxChars=12000`).
 
 ### Hello world smoke test
 
@@ -75,6 +105,34 @@ Check active logs:
 
 ```sh
 docker compose logs -f openclaw
+```
+
+### Discord setup (native OpenClaw)
+
+1. Create a Discord app and bot in Discord Developer Portal.
+2. Invite bot to your server with scopes `bot` and `applications.commands`.
+3. Enable **Message Content Intent** in bot settings.
+4. Put bot token into `.env` as `DISCORD_BOT_TOKEN`.
+5. Start services and verify logs:
+
+```sh
+dotenvx run -- docker compose up -d
+docker compose logs -f openclaw
+```
+
+### Discord control policy (declarative)
+
+`openclaw/openclaw.managed.json` includes secure defaults:
+
+- `channels.discord.groupPolicy = "allowlist"`
+- `channels.discord.allowBots = false`
+- `channels.discord.dmPolicy = "disabled"`
+- `channels.discord.guilds."*".requireMention = true`
+
+Adjust this section to fit your server policy, then apply with:
+
+```sh
+dotenvx run -- docker compose up -d --build openclaw
 ```
 
 ### Optional: GUI mode (advanced)

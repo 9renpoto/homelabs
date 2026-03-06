@@ -1,7 +1,17 @@
 #!/bin/sh
 set -eu
 
-OLLAMA_MODEL="${OLLAMA_MODEL:-qwen2.5:0.5b}"
+RAW_OLLAMA_MODEL="${OLLAMA_MODEL:-}"
+RAW_OLLAMA_MODEL="$(printf '%s' "$RAW_OLLAMA_MODEL" | sed 's/^ *//;s/ *$//')"
+
+case "$RAW_OLLAMA_MODEL" in
+  ''|'""'|"''")
+    OLLAMA_MODEL='qwen2.5:0.5b'
+    ;;
+  *)
+    OLLAMA_MODEL="$RAW_OLLAMA_MODEL"
+    ;;
+esac
 
 ollama serve &
 serve_pid=$!

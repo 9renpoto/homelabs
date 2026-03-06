@@ -68,6 +68,58 @@ This roadmap defines a practical path from local validation on macOS to secure o
 - Minimal command set (`/status`, `/help`, and one gameplay-related command).
 - Local integration test scenario and troubleshooting notes.
 
+### Task Breakdown (Discord-first)
+
+#### M3-0: Foundation (Secrets and Bot Registration)
+
+- Create Discord application and bot user.
+- Store `DISCORD_BOT_TOKEN` outside source control.
+- Define minimum required bot permissions and channel scope.
+
+**Exit criteria:** Bot identity is visible in the target server and secrets are injected via environment variables only.
+
+#### M3-1: Message Bridge MVP (`/ask` only)
+
+- Add a lightweight bridge service (Discord events -> OpenClaw CLI invocation).
+- Implement one slash command: `/ask <message>`.
+- Execute OpenClaw through existing container command path and return response to Discord.
+- Add request timeout handling and user-facing fallback message.
+
+**Exit criteria:** `/ask` returns OpenClaw output reliably in local testing for at least 5 consecutive requests.
+
+#### M3-2: Operational Commands (`/status` and `/help`)
+
+- Implement `/status` to report bridge health, OpenClaw reachability, and Ollama readiness.
+- Implement `/help` to show supported commands and safe usage limits.
+- Standardize response format for success/error cases.
+
+**Exit criteria:** `/status` and `/help` work in the same guild/channel as `/ask` with consistent output.
+
+#### M3-3: Safety Controls
+
+- Add per-user and global rate limits.
+- Validate and sanitize user input length/content before forwarding to OpenClaw.
+- Add retry policy with bounded backoff for transient failures.
+- Add structured error classes (`timeout`, `upstream_unavailable`, `validation_error`).
+
+**Exit criteria:** abusive or malformed inputs are rejected predictably, and transient failures do not crash the bridge.
+
+#### M3-4: Observability and Runbook
+
+- Add structured logs for command start/end, latency, and failure reason.
+- Document local smoke test and troubleshooting flow in repository docs.
+- Add minimal on-call playbook: restart, health checks, and token rotation steps.
+
+**Exit criteria:** operators can diagnose failures from logs and recover service using documented steps.
+
+### Suggested Implementation Order
+
+1. M3-0 Foundation
+2. M3-1 `/ask` MVP
+3. M3-2 `/status` and `/help`
+4. M3-3 Safety controls
+5. M3-4 Observability and runbook
+
 ## Phase 4 — Secure Ubuntu Server Deployment
 
 ### Scope
@@ -107,5 +159,7 @@ This roadmap defines a practical path from local validation on macOS to secure o
 
 1. Finalize M1 checklist and log current macOS validation results.
 2. Define model benchmark template for M2.
-3. Draft Discord bot command/spec skeleton for M3.
-4. Prepare Ubuntu hardening template for M4.
+3. Start M3-0 by preparing Discord app, bot token flow, and env var contract.
+4. Implement M3-1 bridge MVP with `/ask` command only.
+5. Add M3-2 `/status` and `/help` after MVP validation.
+6. Prepare Ubuntu hardening template for M4.
