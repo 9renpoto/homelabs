@@ -1,6 +1,11 @@
 {
   "models": {
     "providers": {
+      "google": {
+        "api": "google-generative-ai",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+        "models": []
+      },
       "ollama": {
         "api": "ollama",
         "baseUrl": "http://ollama:11434",
@@ -11,7 +16,10 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "ollama/qwen2.5:0.5b"
+        "primary": "google/gemini-2.5-flash-lite",
+        "fallbacks": [
+          "ollama/qwen2.5:0.5b"
+        ]
       },
       "bootstrapMaxChars": 3000,
       "bootstrapTotalMaxChars": 12000
