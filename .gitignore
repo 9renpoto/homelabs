@@ -1,2 +1,6 @@
 /data/
 /state/
+
+# local secret keys for dotenvx (must never be committed)
+.env.keys
+.env.key

@@ -1,0 +1,34 @@
+{
+  "models": {
+    "providers": {
+      "ollama": {
+        "api": "ollama",
+        "baseUrl": "http://ollama:11434",
+        "apiKey": "ollama-local"
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "ollama/qwen2.5:0.5b"
+      },
+      "bootstrapMaxChars": 3000,
+      "bootstrapTotalMaxChars": 12000
+    }
+  },
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "groupPolicy": "allowlist",
+      "streaming": "off",
+      "allowBots": false,
+      "dmPolicy": "disabled",
+      "guilds": {
+        "*": {
+          "requireMention": true
+        }
+      }
+    }
+  }
+}
