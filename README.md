@@ -30,6 +30,9 @@ cp .env.example .env
 Then edit `.env` and set:
 
 - `DISCORD_BOT_TOKEN`
+- `GEMINI_API_KEY` (planner role)
+- `GEMINI_MODEL` (default: `gemini-2.5-flash`)
+- `OLLAMA_MODEL` (worker role)
 
 OpenClaw native Discord channel is enabled automatically when `DISCORD_BOT_TOKEN` is present.
 
@@ -83,6 +86,22 @@ If you update `openclaw/openclaw.managed.json`, rebuild `openclaw` to apply chan
 ```sh
 dotenvx run -- docker compose up -d --build openclaw
 ```
+
+### Gemini (planner) + Ollama (worker)
+
+This repository supports a dual-role model setup:
+
+- Planner/instruction role: `google/gemini-*` (when `GEMINI_API_KEY` is set)
+- Worker/execution role: `ollama/*`
+
+At startup, `openclaw` applies this behavior automatically:
+
+- if `GEMINI_API_KEY` exists, default primary model becomes `google/${GEMINI_MODEL}`
+- if `GEMINI_API_KEY` is empty, default primary model falls back to `ollama/${OLLAMA_MODEL}`
+
+This allows running Gemini in free tier for direction while keeping local task execution on Ollama.
+
+Note: in this setup, Gemini is connected through OpenClaw's native `google-generative-ai` provider.
 
 ### Hello world smoke test
 

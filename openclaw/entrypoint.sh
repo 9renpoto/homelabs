@@ -66,11 +66,96 @@ const sanitizeLegacyDiscordKeys = (cfg) => {
 	return cfg;
 };
 
+const ensureObject = (parent, key) => {
+	if (!isObject(parent[key])) {
+		parent[key] = {};
+	}
+	return parent[key];
+};
+
+const applyProviderEnv = (cfg) => {
+	if (!isObject(cfg)) {
+		return cfg;
+	}
+
+	const providers = ensureObject(ensureObject(cfg, "models"), "providers");
+	const defaultsModel = ensureObject(ensureObject(ensureObject(cfg, "agents"), "defaults"), "model");
+
+	const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
+	const geminiModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
+	const ollamaModel = (process.env.OLLAMA_MODEL || "qwen2.5:0.5b").trim();
+
+	if (geminiApiKey) {
+		const googleProvider = ensureObject(providers, "google");
+		googleProvider.api = "google-generative-ai";
+		if (typeof googleProvider.baseUrl !== "string" || !googleProvider.baseUrl.trim()) {
+			googleProvider.baseUrl = "https://generativelanguage.googleapis.com/v1beta";
+		}
+		if (!Array.isArray(googleProvider.models)) {
+			googleProvider.models = [];
+		}
+		googleProvider.apiKey = geminiApiKey;
+		defaultsModel.primary = `google/${geminiModel}`;
+		return cfg;
+	}
+
+	if ((defaultsModel.primary || "").startsWith("google/")) {
+		defaultsModel.primary = `ollama/${ollamaModel}`;
+	}
+
+	return cfg;
+};
+
+const applyProviderEnvToAgentModels = (cfg) => {
+	if (!isObject(cfg)) {
+		return cfg;
+	}
+
+	const providers = ensureObject(cfg, "providers");
+	const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
+
+	if (!geminiApiKey) {
+		return cfg;
+	}
+
+	const googleProvider = ensureObject(providers, "google");
+	googleProvider.api = "google-generative-ai";
+	googleProvider.baseUrl = "https://generativelanguage.googleapis.com/v1beta";
+	googleProvider.apiKey = geminiApiKey;
+	if (!Array.isArray(googleProvider.models)) {
+		googleProvider.models = [];
+	}
+
+	return cfg;
+};
+
+const syncAgentModelFiles = (openclawHome) => {
+	const agentsRoot = `${openclawHome}/agents`;
+	if (!fs.existsSync(agentsRoot)) {
+		return;
+	}
+
+	for (const entry of fs.readdirSync(agentsRoot, { withFileTypes: true })) {
+		if (!entry.isDirectory()) {
+			continue;
+		}
+		const modelPath = `${agentsRoot}/${entry.name}/agent/models.json`;
+		if (!fs.existsSync(modelPath)) {
+			continue;
+		}
+
+		const current = readJson(modelPath);
+		const next = applyProviderEnvToAgentModels(current);
+		fs.writeFileSync(modelPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+	}
+};
+
 const current = sanitizeLegacyDiscordKeys(readJson(targetPath));
 const managed = readJson(managedPath);
-const next = deepMerge(current, managed);
+const next = applyProviderEnv(deepMerge(current, managed));
 
 fs.writeFileSync(targetPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+syncAgentModelFiles("/home/node/.openclaw");
 NODE
 fi
 
