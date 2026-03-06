@@ -87,6 +87,33 @@ If you update `openclaw/openclaw.managed.json`, rebuild `openclaw` to apply chan
 dotenvx run -- docker compose up -d --build openclaw
 ```
 
+### Workspace AGENTS.md (reproducible)
+
+For reproducible agent behavior, workspace `AGENTS.md` files are source-controlled as templates:
+
+- `openclaw/workspace/AGENTS.md`
+- `openclaw/workspace-smoke/AGENTS.md`
+
+At container startup, these files are synced into runtime state paths:
+
+- `state/openclaw/workspace/AGENTS.md`
+- `state/openclaw/workspace-smoke/AGENTS.md`
+
+This keeps runtime state deterministic without committing the whole `state/` directory.
+
+### Duplicate Question Cache
+
+OpenClaw currently applies request dedupe in gateway memory (idempotency-based, short-lived), and this repository does not expose a native Redis cache backend setting for that path.
+
+To reduce repeated answers for the same user question, `AGENTS.md` templates include a practical cache policy:
+
+- Store prompt fingerprints in `memory/prompt-cache.json`
+- Reuse/summarize previous answer when the same normalized question is repeated within 1 hour
+- Skip heavy tool calls on cache hits
+- Keep cache bounded to 500 entries
+
+If the user explicitly asks to refresh/re-run, bypass cache once and update the entry.
+
 ### Gemini (planner) + Ollama (worker)
 
 This repository supports a dual-role model setup:
@@ -117,7 +144,7 @@ On CPU-only local environments, this first response can take a few minutes.
 For a cleaner first-step check, you can use a dedicated minimal agent:
 
 ```sh
-docker compose exec openclaw sh -lc 'openclaw agents add smoke --non-interactive --workspace /home/node/.openclaw/workspace-smoke --model ollama/qwen2.5:0.5b --json >/dev/null 2>&1 || true'
+docker compose exec openclaw sh -lc 'openclaw agents add smoke --non-interactive --workspace /home/node/.openclaw/workspace-smoke --model ollama/qwen2.5:3b-instruct-q4_K_M --json >/dev/null 2>&1 || true'
 docker compose exec openclaw openclaw agent --local --agent smoke --thinking off --timeout 1200 --message "hello world" --json
 ```
 

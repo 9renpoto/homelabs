@@ -18,11 +18,15 @@
       "model": {
         "primary": "google/gemini-2.5-flash-lite",
         "fallbacks": [
-          "ollama/qwen2.5:0.5b"
+          "ollama/qwen2.5:3b-instruct-q4_K_M"
         ]
       },
-      "bootstrapMaxChars": 3000,
-      "bootstrapTotalMaxChars": 12000
+      "bootstrapMaxChars": 1024,
+      "bootstrapTotalMaxChars": 4096,
+      "maxConcurrent": 1,
+      "subagents": {
+        "maxConcurrent": 1
+      }
     }
   },
   "channels": {

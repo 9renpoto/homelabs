@@ -6,7 +6,7 @@ RAW_OLLAMA_MODEL="$(printf '%s' "$RAW_OLLAMA_MODEL" | sed 's/^ *//;s/ *$//')"
 
 case "$RAW_OLLAMA_MODEL" in
   ''|'""'|"''")
-    OLLAMA_MODEL='qwen2.5:0.5b'
+    OLLAMA_MODEL='qwen2.5:3b-instruct-q4_K_M'
     ;;
   *)
     OLLAMA_MODEL="$RAW_OLLAMA_MODEL"

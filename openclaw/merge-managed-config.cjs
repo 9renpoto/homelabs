@@ -31,7 +31,12 @@ const readJson = (path) => {
     return {};
   }
 
-  return /** @type {JsonObject} */ (JSON.parse(text));
+  try {
+    return /** @type {JsonObject} */ (JSON.parse(text));
+  } catch (error) {
+    console.warn(`skip invalid JSON at ${path}: ${String(error)}`);
+    return {};
+  }
 };
 
 /**
@@ -115,7 +120,7 @@ const applyProviderEnv = (cfg) => {
 
   const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
   const geminiModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
-  const ollamaModel = (process.env.OLLAMA_MODEL || "qwen2.5:0.5b").trim();
+  const ollamaModel = (process.env.OLLAMA_MODEL || "qwen2.5:3b-instruct-q4_K_M").trim();
   const ollamaFallback = `ollama/${ollamaModel}`;
 
   if (geminiApiKey) {
@@ -203,14 +208,45 @@ const syncAgentModelFiles = (openclawHome) => {
 };
 
 /**
+ * Copies managed AGENTS.md templates into workspace directories.
+ *
+ * @param {string} openclawHome
+ * @param {string} templatesRoot
+ * @returns {void}
+ */
+const syncWorkspaceAgentDocs = (openclawHome, templatesRoot) => {
+  /** @type {Array<{src: string, dest: string}>} */
+  const mappings = [
+    {
+      src: `${templatesRoot}/workspace/AGENTS.md`,
+      dest: `${openclawHome}/workspace/AGENTS.md`,
+    },
+    {
+      src: `${templatesRoot}/workspace-smoke/AGENTS.md`,
+      dest: `${openclawHome}/workspace-smoke/AGENTS.md`,
+    },
+  ];
+
+  for (const mapping of mappings) {
+    if (!fs.existsSync(mapping.src)) {
+      continue;
+    }
+
+    fs.mkdirSync(mapping.dest.replace(/\/AGENTS\.md$/, ""), { recursive: true });
+    fs.copyFileSync(mapping.src, mapping.dest);
+  }
+};
+
+/**
  * Merges managed config with runtime config and writes the resulting file.
  *
  * @param {string} targetPath
  * @param {string} managedPath
  * @param {string} openclawHome
+ * @param {string} templatesRoot
  * @returns {void}
  */
-const mergeManagedConfig = (targetPath, managedPath, openclawHome) => {
+const mergeManagedConfig = (targetPath, managedPath, openclawHome, templatesRoot) => {
   const current = sanitizeLegacyDiscordKeys(readJson(targetPath));
   const managed = readJson(managedPath);
 
@@ -219,14 +255,16 @@ const mergeManagedConfig = (targetPath, managedPath, openclawHome) => {
 
   fs.writeFileSync(targetPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
   syncAgentModelFiles(openclawHome);
+  syncWorkspaceAgentDocs(openclawHome, templatesRoot);
 };
 
 const targetPath = process.argv[2];
 const managedPath = process.argv[3];
 const openclawHome = process.argv[4] || "/home/node/.openclaw";
+const templatesRoot = process.argv[5] || "/usr/local/share/openclaw";
 
 if (!targetPath || !managedPath) {
   throw new Error("Usage: node merge-managed-config.cjs <targetPath> <managedPath> [openclawHome]");
 }
 
-mergeManagedConfig(targetPath, managedPath, openclawHome);
+mergeManagedConfig(targetPath, managedPath, openclawHome, templatesRoot);
