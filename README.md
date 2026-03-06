@@ -39,13 +39,19 @@ docker compose up --build
 
 ### Ollama setup for OpenClaw
 
-The local model (`qwen2.5:0.5b`) is pulled declaratively by Compose via the `ollama-init` service when you run:
+The local model (`qwen2.5:0.5b`) is prepared automatically at startup by the custom Docker image entrypoints when you run:
 
 ```sh
 docker compose up -d
 ```
 
-OpenClaw is configured declaratively by Compose via the `openclaw-init` service, including provider settings and default model selection.
+If you want to test a different local model, set `OLLAMA_MODEL` when starting Compose:
+
+```sh
+OLLAMA_MODEL=qwen2.5:3b docker compose up -d
+```
+
+OpenClaw is configured automatically on startup (provider settings + default model selection).
 For faster local responses in the first step, bootstrap prompt sizes are also reduced (`bootstrapMaxChars=3000`, `bootstrapTotalMaxChars=12000`).
 
 ### Hello world smoke test

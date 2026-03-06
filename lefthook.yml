@@ -1,4 +1,6 @@
 pre-commit:
   commands:
+    hadolint:
+      run: hadolint openclaw/Dockerfile ollama/Dockerfile
     typos:
       run: typos

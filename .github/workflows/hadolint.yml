@@ -1,0 +1,23 @@
+name: Hadolint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  hadolint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run hadolint (openclaw)
+        uses: hadolint/hadolint-action@v3.3.0
+        with:
+          dockerfile: openclaw/Dockerfile
+      - name: Run hadolint (ollama)
+        uses: hadolint/hadolint-action@v3.3.0
+        with:
+          dockerfile: ollama/Dockerfile
