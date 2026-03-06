@@ -1,17 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: docker
-    directory: "/.devcontainer"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "Type: Maintenance"
-  - package-ecosystem: docker
-    directory: "/openclaw"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "Type: Maintenance"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
