@@ -1,12 +1,6 @@
-# syntax=docker/dockerfile:1
-# Use the pre-built OpenClaw image as the base.
-# The multi-stage build (compile from source) is no longer needed
-# because the base image already ships the compiled game binary
-# and all required runtime libraries.
-FROM ghcr.io/openclaw/openclaw:2026.03.02
+FROM ghcr.io/openclaw/openclaw:2026.3.2
 
-# Mount point for the proprietary CLAW.REZ game asset.
-# Place CLAW.REZ in ./data on the host before running.
-VOLUME ["/data"]
+COPY entrypoint.sh /usr/local/bin/openclaw-entrypoint.sh
+RUN chmod +x /usr/local/bin/openclaw-entrypoint.sh
 
-CMD ["/opt/openclaw/OpenClaw"]
+ENTRYPOINT ["/usr/local/bin/openclaw-entrypoint.sh"]

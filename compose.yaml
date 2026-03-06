@@ -1,0 +1,35 @@
+services:
+  openclaw:
+    build:
+      context: ./openclaw
+    ports: ["3000:3000"]
+    environment:
+      - OLLAMA_API_KEY=ollama-local
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:0.5b}
+    volumes:
+      - type: bind
+        source: ./data
+        target: /data
+      - type: bind
+        source: ./state/openclaw
+        target: /home/node/.openclaw
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    build:
+      context: ./ollama
+    environment:
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:0.5b}
+    volumes:
+      - type: bind
+        source: ./state/ollama
+        target: /root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
