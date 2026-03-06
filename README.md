@@ -120,21 +120,6 @@ dotenvx run -- docker compose up -d
 docker compose logs -f openclaw
 ```
 
-### Discord control policy (declarative)
-
-`openclaw/openclaw.managed.json` includes secure defaults:
-
-- `channels.discord.groupPolicy = "allowlist"`
-- `channels.discord.allowBots = false`
-- `channels.discord.dmPolicy = "disabled"`
-- `channels.discord.guilds."*".requireMention = true`
-
-Adjust this section to fit your server policy, then apply with:
-
-```sh
-dotenvx run -- docker compose up -d --build openclaw
-```
-
 ### Optional: GUI mode (advanced)
 
 If you later need on-screen rendering, configure an X11 display path for your host OS and set `DISPLAY` when running the container.
