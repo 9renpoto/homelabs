@@ -7,7 +7,7 @@ services:
       - OLLAMA_API_KEY=ollama-local
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:0.5b}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
     volumes:
       - type: bind

@@ -31,7 +31,7 @@ Then edit `.env` and set:
 
 - `DISCORD_BOT_TOKEN`
 - `GEMINI_API_KEY` (planner role)
-- `GEMINI_MODEL` (default: `gemini-2.5-flash`)
+- `GEMINI_MODEL` (default: `gemini-2.5-flash-lite`)
 - `OLLAMA_MODEL` (worker role)
 
 OpenClaw native Discord channel is enabled automatically when `DISCORD_BOT_TOKEN` is present.
@@ -97,6 +97,7 @@ This repository supports a dual-role model setup:
 At startup, `openclaw` applies this behavior automatically:
 
 - if `GEMINI_API_KEY` exists, default primary model becomes `google/${GEMINI_MODEL}`
+- if `GEMINI_API_KEY` exists, default fallback model becomes `ollama/${OLLAMA_MODEL}`
 - if `GEMINI_API_KEY` is empty, default primary model falls back to `ollama/${OLLAMA_MODEL}`
 
 This allows running Gemini in free tier for direction while keeping local task execution on Ollama.

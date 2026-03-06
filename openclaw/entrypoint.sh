@@ -82,8 +82,9 @@ const applyProviderEnv = (cfg) => {
 	const defaultsModel = ensureObject(ensureObject(ensureObject(cfg, "agents"), "defaults"), "model");
 
 	const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
-	const geminiModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
+	const geminiModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
 	const ollamaModel = (process.env.OLLAMA_MODEL || "qwen2.5:0.5b").trim();
+	const ollamaFallback = `ollama/${ollamaModel}`;
 
 	if (geminiApiKey) {
 		const googleProvider = ensureObject(providers, "google");
@@ -96,11 +97,16 @@ const applyProviderEnv = (cfg) => {
 		}
 		googleProvider.apiKey = geminiApiKey;
 		defaultsModel.primary = `google/${geminiModel}`;
+		defaultsModel.fallbacks = [ollamaFallback];
 		return cfg;
 	}
 
 	if ((defaultsModel.primary || "").startsWith("google/")) {
-		defaultsModel.primary = `ollama/${ollamaModel}`;
+		defaultsModel.primary = ollamaFallback;
+	}
+
+	if (Array.isArray(defaultsModel.fallbacks)) {
+		defaultsModel.fallbacks = defaultsModel.fallbacks.filter((entry) => typeof entry === "string" && entry.trim() && entry.trim() !== defaultsModel.primary);
 	}
 
 	return cfg;
