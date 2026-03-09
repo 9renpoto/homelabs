@@ -82,6 +82,59 @@ const ensureObject = (parent, key) => {
 };
 
 /**
+ * Appends a model id if non-empty and not already present.
+ *
+ * @param {string[]} list
+ * @param {string} value
+ * @returns {void}
+ */
+const pushUnique = (list, value) => {
+  const normalized = value.trim();
+  if (!normalized) {
+    return;
+  }
+
+  if (!list.includes(normalized)) {
+    list.push(normalized);
+  }
+};
+
+/**
+ * Builds optional provider definitions from environment variables.
+ *
+ * Required variables per slot:
+ * - <SLOT>_PROVIDER_ID
+ * - <SLOT>_PROVIDER_API
+ * - <SLOT>_BASE_URL
+ * - <SLOT>_API_KEY
+ * - <SLOT>_MODEL
+ *
+ * @param {string} slot
+ * @returns {Array<{id: string, api: string, baseUrl: string, apiKey: string, model: string}>}
+ */
+const readOptionalProviders = (slot) => {
+  const providerId = (process.env[`${slot}_PROVIDER_ID`] || "").trim();
+  const providerApi = (process.env[`${slot}_PROVIDER_API`] || "").trim();
+  const baseUrl = (process.env[`${slot}_BASE_URL`] || "").trim();
+  const apiKey = (process.env[`${slot}_API_KEY`] || "").trim();
+  const model = (process.env[`${slot}_MODEL`] || "").trim();
+
+  if (!providerId || !providerApi || !baseUrl || !apiKey || !model) {
+    return [];
+  }
+
+  return [
+    {
+      id: providerId,
+      api: providerApi,
+      baseUrl,
+      apiKey,
+      model,
+    },
+  ];
+};
+
+/**
  * Removes obsolete Discord keys that can break current schema validation.
  *
  * @param {JsonObject} cfg
@@ -121,7 +174,14 @@ const applyProviderEnv = (cfg) => {
   const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
   const geminiModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
   const ollamaModel = (process.env.OLLAMA_MODEL || "qwen2.5:3b-instruct-q4_K_M").trim();
-  const ollamaFallback = `ollama/${ollamaModel}`;
+  const localPrimaryPreferred = (process.env.LOCAL_PRIMARY || "").trim() === "1";
+  const useOllamaSyncFallback = (process.env.OLLAMA_SYNC_FALLBACK || "").trim() === "1";
+  const localPrimary = `ollama/${ollamaModel}`;
+  const googlePrimary = `google/${geminiModel}`;
+  /** @type {string[]} */
+  const fallbacks = [];
+
+  defaultsModel.primary = localPrimary;
 
   if (geminiApiKey) {
     const googleProvider = ensureObject(providers, "google");
@@ -134,20 +194,34 @@ const applyProviderEnv = (cfg) => {
     }
 
     googleProvider.apiKey = geminiApiKey;
-    defaultsModel.primary = `google/${geminiModel}`;
-    defaultsModel.fallbacks = [ollamaFallback];
-    return cfg;
+    if (localPrimaryPreferred) {
+      pushUnique(fallbacks, googlePrimary);
+    } else {
+      defaultsModel.primary = googlePrimary;
+      if (useOllamaSyncFallback) {
+        pushUnique(fallbacks, localPrimary);
+      }
+    }
   }
 
-  if (typeof defaultsModel.primary === "string" && defaultsModel.primary.startsWith("google/")) {
-    defaultsModel.primary = ollamaFallback;
+  const optionalProviders = [
+    ...readOptionalProviders("ALT1"),
+    ...readOptionalProviders("ALT2"),
+  ];
+
+  for (const optionalProvider of optionalProviders) {
+    const provider = ensureObject(providers, optionalProvider.id);
+    provider.api = optionalProvider.api;
+    provider.baseUrl = optionalProvider.baseUrl;
+    provider.apiKey = optionalProvider.apiKey;
+    if (!Array.isArray(provider.models)) {
+      provider.models = [];
+    }
+
+    pushUnique(fallbacks, `${optionalProvider.id}/${optionalProvider.model}`);
   }
 
-  if (Array.isArray(defaultsModel.fallbacks)) {
-    defaultsModel.fallbacks = defaultsModel.fallbacks.filter(
-      (entry) => typeof entry === "string" && entry.trim() && entry.trim() !== defaultsModel.primary,
-    );
-  }
+  defaultsModel.fallbacks = fallbacks.filter((entry) => entry !== defaultsModel.primary);
 
   return cfg;
 };
@@ -163,17 +237,30 @@ const applyProviderEnvToAgentModels = (cfg) => {
   const providers = ensureObject(cfg, "providers");
   const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
 
-  if (!geminiApiKey) {
-    return cfg;
+  if (geminiApiKey) {
+    const googleProvider = ensureObject(providers, "google");
+    googleProvider.api = "google-generative-ai";
+    googleProvider.baseUrl = "https://generativelanguage.googleapis.com/v1beta";
+    googleProvider.apiKey = geminiApiKey;
+
+    if (!Array.isArray(googleProvider.models)) {
+      googleProvider.models = [];
+    }
   }
 
-  const googleProvider = ensureObject(providers, "google");
-  googleProvider.api = "google-generative-ai";
-  googleProvider.baseUrl = "https://generativelanguage.googleapis.com/v1beta";
-  googleProvider.apiKey = geminiApiKey;
+  const optionalProviders = [
+    ...readOptionalProviders("ALT1"),
+    ...readOptionalProviders("ALT2"),
+  ];
 
-  if (!Array.isArray(googleProvider.models)) {
-    googleProvider.models = [];
+  for (const optionalProvider of optionalProviders) {
+    const provider = ensureObject(providers, optionalProvider.id);
+    provider.api = optionalProvider.api;
+    provider.baseUrl = optionalProvider.baseUrl;
+    provider.apiKey = optionalProvider.apiKey;
+    if (!Array.isArray(provider.models)) {
+      provider.models = [];
+    }
   }
 
   return cfg;

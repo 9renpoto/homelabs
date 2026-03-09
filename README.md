@@ -32,7 +32,10 @@ Then edit `.env` and set:
 - `DISCORD_BOT_TOKEN`
 - `GEMINI_API_KEY` (planner role)
 - `GEMINI_MODEL` (default: `gemini-2.5-flash-lite`)
-- `OLLAMA_MODEL` (worker role)
+- `OLLAMA_MODEL` (worker role, default: `qwen2.5:0.5b`)
+- `LOCAL_PRIMARY` (`0`: Gemini primary, `1`: Ollama primary)
+- `OLLAMA_SYNC_FALLBACK` (`0`: disable Ollama in sync fallback chain, `1`: enable)
+- `ALT1_*` / `ALT2_*` (optional extra fallback providers)
 
 OpenClaw native Discord channel is enabled automatically when `DISCORD_BOT_TOKEN` is present.
 
@@ -65,6 +68,26 @@ Build and run all services (`openclaw`, `ollama`):
 ```sh
 dotenvx run -- docker compose up --build
 ```
+
+### SearXNG local search API
+
+This repository includes a local [SearXNG](https://github.com/searxng/searxng) service for search API fan-out and quota distribution.
+
+Start services:
+
+```sh
+dotenvx run -- docker compose up -d --build
+```
+
+Verify SearXNG health from host:
+
+```sh
+docker compose port searxng 8080
+PORT=$(docker compose port searxng 8080 | awk -F: '{print $NF}')
+curl -sS "http://localhost:${PORT}/search?q=homelabs&format=json" | head
+```
+
+If you run behind a reverse proxy, set `SEARXNG_BASE_URL` in `.env`.
 
 ### Ollama setup for OpenClaw
 
@@ -114,22 +137,40 @@ To reduce repeated answers for the same user question, `AGENTS.md` templates inc
 
 If the user explicitly asks to refresh/re-run, bypass cache once and update the entry.
 
-### Gemini (planner) + Ollama (worker)
+### Local-first multi-provider routing
 
-This repository supports a dual-role model setup:
+This repository supports configurable routing with optional cloud fallbacks:
 
-- Planner/instruction role: `google/gemini-*` (when `GEMINI_API_KEY` is set)
-- Worker/execution role: `ollama/*`
+- Primary model: `google/${GEMINI_MODEL}` when `LOCAL_PRIMARY=0` and `GEMINI_API_KEY` is set
+- Primary model: `ollama/${OLLAMA_MODEL}` when `LOCAL_PRIMARY=1` or `GEMINI_API_KEY` is unset
+- Fallback #1: the other side (`ollama/*` or `google/*`) depending on primary
+- Fallback #2 and #3: optional `ALT1_*` / `ALT2_*` provider slots
 
 At startup, `openclaw` applies this behavior automatically:
 
-- if `GEMINI_API_KEY` exists, default primary model becomes `google/${GEMINI_MODEL}`
-- if `GEMINI_API_KEY` exists, default fallback model becomes `ollama/${OLLAMA_MODEL}`
-- if `GEMINI_API_KEY` is empty, default primary model falls back to `ollama/${OLLAMA_MODEL}`
+- when `LOCAL_PRIMARY=0` and Gemini key exists, Gemini is primary and Ollama is fallback
+- when `LOCAL_PRIMARY=1`, Ollama is primary and Gemini is fallback
+- when `LOCAL_PRIMARY=0`, set `OLLAMA_SYNC_FALLBACK=0` to keep Ollama for async/subagent use only
+- each `ALTn_*` slot is appended when all required values are present:
+	- `ALTn_PROVIDER_ID`
+	- `ALTn_PROVIDER_API`
+	- `ALTn_BASE_URL`
+	- `ALTn_API_KEY`
+	- `ALTn_MODEL`
 
-This allows running Gemini in free tier for direction while keeping local task execution on Ollama.
+This lets you combine multiple free tiers and switch routing strategy without editing runtime state.
 
-Note: in this setup, Gemini is connected through OpenClaw's native `google-generative-ai` provider.
+If local responses are slow or timing out, use `LOCAL_PRIMARY=0` (Gemini primary) and keep Ollama as fallback until local provider behavior is stable.
+
+Example (`ALT1_*` with OpenAI-compatible endpoint such as OpenRouter):
+
+```env
+ALT1_PROVIDER_ID=openrouter
+ALT1_PROVIDER_API=openai
+ALT1_BASE_URL=https://openrouter.ai/api/v1
+ALT1_API_KEY=...
+ALT1_MODEL=meta-llama/llama-3.1-8b-instruct:free
+```
 
 ### Hello world smoke test
 
