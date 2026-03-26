@@ -1,14 +1,43 @@
 services:
+  searxng:
+    image: searxng/searxng:latest
+    ports: ["0:8080"]
+    environment:
+      - BASE_URL=${SEARXNG_BASE_URL:-http://localhost:8080/}
+      - INSTANCE_NAME=${SEARXNG_INSTANCE_NAME:-homelabs-searxng}
+    volumes:
+      - type: bind
+        source: ./searxng/settings.yml
+        target: /etc/searxng/settings.yml
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   openclaw:
     build:
       context: ./openclaw
     ports: ["3000:3000"]
     environment:
       - OLLAMA_API_KEY=ollama-local
-      - OLLAMA_MODEL=qwen2.5:3b-instruct-q4_K_M
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:0.5b}
       - CONTEXT_WINDOW=4096
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite}
+      - LOCAL_PRIMARY=${LOCAL_PRIMARY:-0}
+      - OLLAMA_SYNC_FALLBACK=${OLLAMA_SYNC_FALLBACK:-0}
+      - ALT1_PROVIDER_ID=${ALT1_PROVIDER_ID:-}
+      - ALT1_PROVIDER_API=${ALT1_PROVIDER_API:-}
+      - ALT1_BASE_URL=${ALT1_BASE_URL:-}
+      - ALT1_API_KEY=${ALT1_API_KEY:-}
+      - ALT1_MODEL=${ALT1_MODEL:-}
+      - ALT2_PROVIDER_ID=${ALT2_PROVIDER_ID:-}
+      - ALT2_PROVIDER_API=${ALT2_PROVIDER_API:-}
+      - ALT2_BASE_URL=${ALT2_BASE_URL:-}
+      - ALT2_API_KEY=${ALT2_API_KEY:-}
+      - ALT2_MODEL=${ALT2_MODEL:-}
       - MAX_AGENT_STEPS=5
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
     volumes:
@@ -19,6 +48,8 @@ services:
         source: ./state/openclaw
         target: /home/node/.openclaw
     depends_on:
+      searxng:
+        condition: service_healthy
       ollama:
         condition: service_healthy
     restart: unless-stopped
@@ -27,7 +58,7 @@ services:
     build:
       context: ./ollama
     environment:
-      - OLLAMA_MODEL=qwen2.5:3b-instruct-q4_K_M
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:0.5b}
       - OLLAMA_CONTEXT_LENGTH=4096
     volumes:
       - type: bind
