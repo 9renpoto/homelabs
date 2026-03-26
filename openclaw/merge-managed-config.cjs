@@ -82,6 +82,39 @@ const ensureObject = (parent, key) => {
 };
 
 /**
+ * Pushes value into array only when not present.
+ *
+ * @param {string[]} list
+ * @param {string} value
+ * @returns {void}
+ */
+const pushUnique = (list, value) => {
+  if (value && !list.includes(value)) {
+    list.push(value);
+  }
+};
+
+/**
+ * Reads optional provider definition from ALTn_* environment variables.
+ *
+ * @param {"ALT1"|"ALT2"} prefix
+ * @returns {Array<{id: string, api: string, baseUrl: string, apiKey: string, model: string}>}
+ */
+const readOptionalProviders = (prefix) => {
+  const id = (process.env[`${prefix}_PROVIDER_ID`] || "").trim();
+  const api = (process.env[`${prefix}_PROVIDER_API`] || "").trim();
+  const baseUrl = (process.env[`${prefix}_BASE_URL`] || "").trim();
+  const apiKey = (process.env[`${prefix}_API_KEY`] || "").trim();
+  const model = (process.env[`${prefix}_MODEL`] || "").trim();
+
+  if (!id || !api || !baseUrl || !apiKey || !model) {
+    return [];
+  }
+
+  return [{ id, api, baseUrl, apiKey, model }];
+};
+
+/**
  * Removes obsolete Discord keys that can break current schema validation.
  *
  * @param {JsonObject} cfg
@@ -121,7 +154,15 @@ const applyProviderEnv = (cfg) => {
   const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
   const geminiModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
   const ollamaModel = (process.env.OLLAMA_MODEL || "qwen2.5:3b-instruct-q4_K_M").trim();
-  const ollamaFallback = `ollama/${ollamaModel}`;
+  const localPrimaryPreferred = (process.env.LOCAL_PRIMARY || "").trim() === "1";
+  const useOllamaSyncFallback = (process.env.OLLAMA_SYNC_FALLBACK || "").trim() === "1";
+  const fallbackGuardEnabled = (process.env.FALLBACK_GUARD || "1").trim() !== "0";
+  const localPrimary = `ollama/${ollamaModel}`;
+  const googlePrimary = `google/${geminiModel}`;
+  /** @type {string[]} */
+  const fallbacks = [];
+
+  defaultsModel.primary = localPrimary;
 
   if (geminiApiKey) {
     const googleProvider = ensureObject(providers, "google");
@@ -134,19 +175,43 @@ const applyProviderEnv = (cfg) => {
     }
 
     googleProvider.apiKey = geminiApiKey;
-    defaultsModel.primary = `google/${geminiModel}`;
-    defaultsModel.fallbacks = [ollamaFallback];
-    return cfg;
+    if (!localPrimaryPreferred) {
+      defaultsModel.primary = googlePrimary;
+      if (useOllamaSyncFallback) {
+        pushUnique(fallbacks, localPrimary);
+      }
+    } else {
+      pushUnique(fallbacks, googlePrimary);
+    }
   }
 
-  if (typeof defaultsModel.primary === "string" && defaultsModel.primary.startsWith("google/")) {
-    defaultsModel.primary = ollamaFallback;
+  const optionalProviders = [
+    ...readOptionalProviders("ALT1"),
+    ...readOptionalProviders("ALT2"),
+  ];
+
+  for (const optionalProvider of optionalProviders) {
+    const provider = ensureObject(providers, optionalProvider.id);
+    provider.api = optionalProvider.api;
+    provider.baseUrl = optionalProvider.baseUrl;
+    provider.apiKey = optionalProvider.apiKey;
+    if (!Array.isArray(provider.models)) {
+      provider.models = [];
+    }
+
+    pushUnique(fallbacks, `${optionalProvider.id}/${optionalProvider.model}`);
   }
 
-  if (Array.isArray(defaultsModel.fallbacks)) {
-    defaultsModel.fallbacks = defaultsModel.fallbacks.filter(
-      (entry) => typeof entry === "string" && entry.trim() && entry.trim() !== defaultsModel.primary,
-    );
+  defaultsModel.fallbacks = fallbacks.filter((entry) => entry !== defaultsModel.primary);
+
+  // Guard against a single-provider chain. This keeps free-tier setups running
+  // when the current primary hits quota or rate limits.
+  if (fallbackGuardEnabled && Array.isArray(defaultsModel.fallbacks) && defaultsModel.fallbacks.length === 0) {
+    if (defaultsModel.primary === googlePrimary) {
+      defaultsModel.fallbacks = [localPrimary];
+    } else if (geminiApiKey) {
+      defaultsModel.fallbacks = [googlePrimary];
+    }
   }
 
   return cfg;

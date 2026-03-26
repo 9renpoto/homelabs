@@ -1,4 +1,18 @@
 services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
+    ports: ["6379:6379"]
+    volumes:
+      - type: bind
+        source: ./state/redis
+        target: /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
   openclaw:
     build:
       context: ./openclaw
@@ -9,6 +23,22 @@ services:
       - CONTEXT_WINDOW=4096
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite}
+      - LOCAL_PRIMARY=${LOCAL_PRIMARY:-0}
+      - OLLAMA_SYNC_FALLBACK=${OLLAMA_SYNC_FALLBACK:-0}
+      - FALLBACK_GUARD=${FALLBACK_GUARD:-1}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - REDIS_CACHE_TTL_SEC=${REDIS_CACHE_TTL_SEC:-3600}
+      - REDIS_CACHE_PREFIX=${REDIS_CACHE_PREFIX:-openclaw:prompt-cache}
+      - ALT1_PROVIDER_ID=${ALT1_PROVIDER_ID:-}
+      - ALT1_PROVIDER_API=${ALT1_PROVIDER_API:-}
+      - ALT1_BASE_URL=${ALT1_BASE_URL:-}
+      - ALT1_API_KEY=${ALT1_API_KEY:-}
+      - ALT1_MODEL=${ALT1_MODEL:-}
+      - ALT2_PROVIDER_ID=${ALT2_PROVIDER_ID:-}
+      - ALT2_PROVIDER_API=${ALT2_PROVIDER_API:-}
+      - ALT2_BASE_URL=${ALT2_BASE_URL:-}
+      - ALT2_API_KEY=${ALT2_API_KEY:-}
+      - ALT2_MODEL=${ALT2_MODEL:-}
       - MAX_AGENT_STEPS=5
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
     volumes:
@@ -19,6 +49,8 @@ services:
         source: ./state/openclaw
         target: /home/node/.openclaw
     depends_on:
+      redis:
+        condition: service_healthy
       ollama:
         condition: service_healthy
     restart: unless-stopped
