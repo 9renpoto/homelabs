@@ -1,4 +1,4 @@
-FROM ghcr.io/openclaw/openclaw:2026.3.13-1
+FROM ghcr.io/openclaw/openclaw:2026.3.24
 
 COPY openclaw.managed.json /usr/local/share/openclaw/openclaw.managed.json
 COPY workspace/AGENTS.md /usr/local/share/openclaw/workspace/AGENTS.md
