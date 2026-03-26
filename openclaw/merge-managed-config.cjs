@@ -82,36 +82,56 @@ const ensureObject = (parent, key) => {
 };
 
 /**
- * Pushes value into array only when not present.
+ * Appends a model id if non-empty and not already present.
  *
  * @param {string[]} list
  * @param {string} value
  * @returns {void}
  */
 const pushUnique = (list, value) => {
-  if (value && !list.includes(value)) {
-    list.push(value);
+  const normalized = value.trim();
+  if (!normalized) {
+    return;
+  }
+
+  if (!list.includes(normalized)) {
+    list.push(normalized);
   }
 };
 
 /**
- * Reads optional provider definition from ALTn_* environment variables.
+ * Builds optional provider definitions from environment variables.
  *
- * @param {"ALT1"|"ALT2"} prefix
+ * Required variables per slot:
+ * - <SLOT>_PROVIDER_ID
+ * - <SLOT>_PROVIDER_API
+ * - <SLOT>_BASE_URL
+ * - <SLOT>_API_KEY
+ * - <SLOT>_MODEL
+ *
+ * @param {string} slot
  * @returns {Array<{id: string, api: string, baseUrl: string, apiKey: string, model: string}>}
  */
-const readOptionalProviders = (prefix) => {
-  const id = (process.env[`${prefix}_PROVIDER_ID`] || "").trim();
-  const api = (process.env[`${prefix}_PROVIDER_API`] || "").trim();
-  const baseUrl = (process.env[`${prefix}_BASE_URL`] || "").trim();
-  const apiKey = (process.env[`${prefix}_API_KEY`] || "").trim();
-  const model = (process.env[`${prefix}_MODEL`] || "").trim();
+const readOptionalProviders = (slot) => {
+  const providerId = (process.env[`${slot}_PROVIDER_ID`] || "").trim();
+  const providerApi = (process.env[`${slot}_PROVIDER_API`] || "").trim();
+  const baseUrl = (process.env[`${slot}_BASE_URL`] || "").trim();
+  const apiKey = (process.env[`${slot}_API_KEY`] || "").trim();
+  const model = (process.env[`${slot}_MODEL`] || "").trim();
 
-  if (!id || !api || !baseUrl || !apiKey || !model) {
+  if (!providerId || !providerApi || !baseUrl || !apiKey || !model) {
     return [];
   }
 
-  return [{ id, api, baseUrl, apiKey, model }];
+  return [
+    {
+      id: providerId,
+      api: providerApi,
+      baseUrl,
+      apiKey,
+      model,
+    },
+  ];
 };
 
 /**
@@ -175,13 +195,13 @@ const applyProviderEnv = (cfg) => {
     }
 
     googleProvider.apiKey = geminiApiKey;
-    if (!localPrimaryPreferred) {
+    if (localPrimaryPreferred) {
+      pushUnique(fallbacks, googlePrimary);
+    } else {
       defaultsModel.primary = googlePrimary;
       if (useOllamaSyncFallback) {
         pushUnique(fallbacks, localPrimary);
       }
-    } else {
-      pushUnique(fallbacks, googlePrimary);
     }
   }
 
@@ -228,17 +248,30 @@ const applyProviderEnvToAgentModels = (cfg) => {
   const providers = ensureObject(cfg, "providers");
   const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
 
-  if (!geminiApiKey) {
-    return cfg;
+  if (geminiApiKey) {
+    const googleProvider = ensureObject(providers, "google");
+    googleProvider.api = "google-generative-ai";
+    googleProvider.baseUrl = "https://generativelanguage.googleapis.com/v1beta";
+    googleProvider.apiKey = geminiApiKey;
+
+    if (!Array.isArray(googleProvider.models)) {
+      googleProvider.models = [];
+    }
   }
 
-  const googleProvider = ensureObject(providers, "google");
-  googleProvider.api = "google-generative-ai";
-  googleProvider.baseUrl = "https://generativelanguage.googleapis.com/v1beta";
-  googleProvider.apiKey = geminiApiKey;
+  const optionalProviders = [
+    ...readOptionalProviders("ALT1"),
+    ...readOptionalProviders("ALT2"),
+  ];
 
-  if (!Array.isArray(googleProvider.models)) {
-    googleProvider.models = [];
+  for (const optionalProvider of optionalProviders) {
+    const provider = ensureObject(providers, optionalProvider.id);
+    provider.api = optionalProvider.api;
+    provider.baseUrl = optionalProvider.baseUrl;
+    provider.apiKey = optionalProvider.apiKey;
+    if (!Array.isArray(provider.models)) {
+      provider.models = [];
+    }
   }
 
   return cfg;

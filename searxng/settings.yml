@@ -1,0 +1,17 @@
+use_default_settings: true
+
+server:
+  secret_key: "change-this-in-production"
+  limiter: false
+
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json
+
+ui:
+  static_use_hash: true
+
+outgoing:
+  request_timeout: 5.0

@@ -13,13 +13,30 @@ services:
       timeout: 3s
       retries: 30
     restart: unless-stopped
+
+  searxng:
+    image: searxng/searxng:latest
+    ports: ["0:8080"]
+    environment:
+      - BASE_URL=${SEARXNG_BASE_URL:-http://localhost:8080/}
+      - INSTANCE_NAME=${SEARXNG_INSTANCE_NAME:-homelabs-searxng}
+    volumes:
+      - type: bind
+        source: ./searxng/settings.yml
+        target: /etc/searxng/settings.yml
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
   openclaw:
     build:
       context: ./openclaw
     ports: ["3000:3000"]
     environment:
       - OLLAMA_API_KEY=ollama-local
-      - OLLAMA_MODEL=qwen2.5:3b-instruct-q4_K_M
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:0.5b}
       - CONTEXT_WINDOW=4096
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite}
@@ -51,6 +68,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      searxng:
+        condition: service_healthy
       ollama:
         condition: service_healthy
     restart: unless-stopped
@@ -59,7 +78,7 @@ services:
     build:
       context: ./ollama
     environment:
-      - OLLAMA_MODEL=qwen2.5:3b-instruct-q4_K_M
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:0.5b}
       - OLLAMA_CONTEXT_LENGTH=4096
     volumes:
       - type: bind
