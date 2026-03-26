@@ -163,3 +163,4 @@ This roadmap defines a practical path from local validation on macOS to secure o
 4. Implement M3-1 bridge MVP with `/ask` command only.
 5. Add M3-2 `/status` and `/help` after MVP validation.
 6. Prepare Ubuntu hardening template for M4.
+7. Add Redis-backed middleware for prompt dedupe/state cache and validate fallback behavior.

@@ -176,6 +176,7 @@ const applyProviderEnv = (cfg) => {
   const ollamaModel = (process.env.OLLAMA_MODEL || "qwen2.5:3b-instruct-q4_K_M").trim();
   const localPrimaryPreferred = (process.env.LOCAL_PRIMARY || "").trim() === "1";
   const useOllamaSyncFallback = (process.env.OLLAMA_SYNC_FALLBACK || "").trim() === "1";
+  const fallbackGuardEnabled = (process.env.FALLBACK_GUARD || "1").trim() !== "0";
   const localPrimary = `ollama/${ollamaModel}`;
   const googlePrimary = `google/${geminiModel}`;
   /** @type {string[]} */
@@ -222,6 +223,16 @@ const applyProviderEnv = (cfg) => {
   }
 
   defaultsModel.fallbacks = fallbacks.filter((entry) => entry !== defaultsModel.primary);
+
+  // Guard against a single-provider chain. This keeps free-tier setups running
+  // when the current primary hits quota or rate limits.
+  if (fallbackGuardEnabled && Array.isArray(defaultsModel.fallbacks) && defaultsModel.fallbacks.length === 0) {
+    if (defaultsModel.primary === googlePrimary) {
+      defaultsModel.fallbacks = [localPrimary];
+    } else if (geminiApiKey) {
+      defaultsModel.fallbacks = [googlePrimary];
+    }
+  }
 
   return cfg;
 };

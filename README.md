@@ -35,7 +35,11 @@ Then edit `.env` and set:
 - `OLLAMA_MODEL` (worker role, default: `qwen2.5:0.5b`)
 - `LOCAL_PRIMARY` (`0`: Gemini primary, `1`: Ollama primary)
 - `OLLAMA_SYNC_FALLBACK` (`0`: disable Ollama in sync fallback chain, `1`: enable)
+- `FALLBACK_GUARD` (`1`: auto-fill fallback if empty, `0`: disable guard)
 - `ALT1_*` / `ALT2_*` (optional extra fallback providers)
+- `REDIS_URL` (default: `redis://redis:6379`)
+- `REDIS_CACHE_TTL_SEC` (default: `3600`)
+- `REDIS_CACHE_PREFIX` (default: `openclaw:prompt-cache`)
 
 OpenClaw native Discord channel is enabled automatically when `DISCORD_BOT_TOKEN` is present.
 
@@ -63,7 +67,7 @@ cp /path/to/CLAW.REZ data/
 
 ### Start (Headless)
 
-Build and run all services (`openclaw`, `ollama`):
+Build and run all services (`openclaw`, `ollama`, `redis`):
 
 ```sh
 dotenvx run -- docker compose up --build
@@ -137,6 +141,34 @@ To reduce repeated answers for the same user question, `AGENTS.md` templates inc
 
 If the user explicitly asks to refresh/re-run, bypass cache once and update the entry.
 
+### Redis (infrastructure for middleware rollout)
+
+This repository now includes a local Redis service to prepare middleware-based caching and state management.
+
+Start all services with Redis:
+
+```sh
+dotenvx run -- docker compose up -d --build
+```
+
+Verify Redis health:
+
+```sh
+docker compose exec redis redis-cli ping
+```
+
+Expected output:
+
+```txt
+PONG
+```
+
+Current status:
+
+- Redis is provisioned at infrastructure level (`redis:6379`).
+- Prompt dedupe policy is still file-based (`memory/prompt-cache.json`) until middleware wiring is added.
+- Next step is introducing a middleware layer that reads/writes dedupe keys in Redis using `REDIS_URL`, `REDIS_CACHE_TTL_SEC`, and `REDIS_CACHE_PREFIX`.
+
 ### Local-first multi-provider routing
 
 This repository supports configurable routing with optional cloud fallbacks:
@@ -159,6 +191,38 @@ At startup, `openclaw` applies this behavior automatically:
 	- `ALTn_MODEL`
 
 This lets you combine multiple free tiers and switch routing strategy without editing runtime state.
+
+If local responses are slow or timing out, use `LOCAL_PRIMARY=0` (Gemini primary) and keep Ollama as fallback until local provider behavior is stable.
+
+Example (`ALT1_*` with OpenAI-compatible endpoint such as OpenRouter):
+
+```env
+ALT1_PROVIDER_ID=openrouter
+ALT1_PROVIDER_API=openai
+ALT1_BASE_URL=https://openrouter.ai/api/v1
+ALT1_API_KEY=...
+ALT1_MODEL=meta-llama/llama-3.1-8b-instruct:free
+```
+
+### Free-tier stop avoidance profile
+
+When a free-tier provider hits quota/rate limits, OpenClaw can stop if the fallback list ends up empty.
+To avoid that, keep `FALLBACK_GUARD=1` (default in this repository).
+
+Recommended profile:
+
+- `LOCAL_PRIMARY=0` (Gemini first for normal latency)
+- `OLLAMA_SYNC_FALLBACK=0` (do not use local fallback unless needed)
+- `FALLBACK_GUARD=1` (auto-add Ollama fallback when fallback chain is empty)
+- Optional: configure `ALT1_*` / `ALT2_*` with additional free-tier endpoints
+
+Verify effective chain after startup:
+
+```sh
+docker compose exec openclaw node -e 'const fs=require("fs");const c=JSON.parse(fs.readFileSync("/home/node/.openclaw/openclaw.json","utf8"));console.log(JSON.stringify(c?.agents?.defaults?.model,null,2));'
+```
+
+If `fallbacks` is empty, fallback is not active and free-tier exhaustion can still hard-stop requests.
 
 If local responses are slow or timing out, use `LOCAL_PRIMARY=0` (Gemini primary) and keep Ollama as fallback until local provider behavior is stable.
 
