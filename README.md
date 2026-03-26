@@ -32,7 +32,7 @@ Then edit `.env` and set:
 - `DISCORD_BOT_TOKEN`
 - `GEMINI_API_KEY` (planner role)
 - `GEMINI_MODEL` (default: `gemini-2.5-flash-lite`)
-- `OLLAMA_MODEL` (worker role, default: `qwen2.5:3b-instruct-q4_K_M`)
+- `OLLAMA_MODEL` (worker role, default: `qwen2.5:0.5b`)
 - `LOCAL_PRIMARY` (`0`: Gemini primary, `1`: Ollama primary)
 - `OLLAMA_SYNC_FALLBACK` (`0`: disable Ollama in sync fallback chain, `1`: enable)
 - `FALLBACK_GUARD` (`1`: auto-fill fallback if empty, `0`: disable guard)
