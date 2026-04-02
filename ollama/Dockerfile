@@ -1,4 +1,4 @@
-FROM ollama/ollama:0.18.2
+FROM ollama/ollama:0.19.0
 
 COPY entrypoint.sh /usr/local/bin/ollama-entrypoint.sh
 RUN chmod +x /usr/local/bin/ollama-entrypoint.sh
