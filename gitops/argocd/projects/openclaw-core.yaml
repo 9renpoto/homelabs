@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: openclaw-core
+  namespace: argocd
+spec:
+  description: OpenClaw core workloads managed from the homelabs repository
+  sourceRepos:
+    - https://github.com/9renpoto/homelabs.git
+  destinations:
+    - namespace: openclaw-system
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

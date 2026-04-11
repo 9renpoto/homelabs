@@ -6,6 +6,48 @@ Docker configuration for running OpenClaw (a Captain Claw reimplementation) in a
 
 - See [ROADMAP.md](./ROADMAP.md) for the phased plan from local macOS validation to secure Ubuntu deployment.
 
+## Experimental k3s bootstrap
+
+This repository now includes a greenfield path for running **OpenClaw core on single-node k3s** inside a dedicated Ubuntu VM on Hyper-V.
+
+Current first milestone:
+
+- bring up an Ubuntu VM dedicated to OpenClaw
+- install k3s and ArgoCD
+- deploy the initial OpenClaw core workload from this public repository
+- keep secrets and runtime-only data outside Git
+
+Current scope intentionally excludes:
+
+- Ollama
+- Redis
+- SearXNG
+- Discord integration
+
+Bootstrap assets:
+
+- `infra/hyperv/New-OpenClawK3sVm.ps1`
+- `infra/cloud-init/openclaw-k3s-user-data.yaml`
+- `gitops/argocd/kustomization.yaml`
+- `gitops/argocd/projects/openclaw-core.yaml`
+- `gitops/argocd/applications/openclaw-bootstrap.yaml`
+- `k8s/openclaw-core/base/`
+- `gitops/argocd/applications/openclaw-core.yaml`
+
+These files are the starting point for a Kubernetes-native deployment and do not yet migrate the existing Docker Compose layout.
+
+One-time bootstrap flow after ArgoCD is installed:
+
+```sh
+kubectl apply -n argocd -f gitops/argocd/applications/openclaw-bootstrap.yaml
+```
+
+After that, ArgoCD should reconcile:
+
+- `gitops/argocd/projects/openclaw-core.yaml`
+- `gitops/argocd/applications/openclaw-core.yaml`
+- `k8s/openclaw-core/base/`
+
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)

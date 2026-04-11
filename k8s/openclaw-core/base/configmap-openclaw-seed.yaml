@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-seed
+  labels:
+    app.kubernetes.io/name: openclaw
+    app.kubernetes.io/part-of: openclaw
+data:
+  openclaw.json: |
+    {
+      "agents": {
+        "defaults": {
+          "bootstrapMaxChars": 1024,
+          "bootstrapTotalMaxChars": 4096,
+          "maxConcurrent": 1,
+          "subagents": {
+            "maxConcurrent": 1
+          }
+        }
+      },
+      "channels": {
+        "discord": {
+          "enabled": false
+        }
+      }
+    }
