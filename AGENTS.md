@@ -43,7 +43,7 @@ hadolint openclaw/Dockerfile ollama/Dockerfile
 gitleaks git --pre-commit --staged --no-banner .
 ```
 
-The staged `gitleaks` command matches `lefthook.yml`. GitHub Actions also runs Biome plus Super Linter.
+The staged `gitleaks` command matches `lefthook.yaml`. GitHub Actions also runs Biome plus Super Linter.
 
 ### Kubernetes / GitOps validation
 

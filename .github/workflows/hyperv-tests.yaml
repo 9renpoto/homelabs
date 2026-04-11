@@ -4,13 +4,13 @@ on:
   pull_request:
     paths:
       - "infra/hyperv/**"
-      - ".github/workflows/hyperv-tests.yml"
+      - ".github/workflows/hyperv-tests.yaml"
   push:
     branches:
       - main
     paths:
       - "infra/hyperv/**"
-      - ".github/workflows/hyperv-tests.yml"
+      - ".github/workflows/hyperv-tests.yaml"
 
 permissions:
   contents: read

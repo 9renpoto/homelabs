@@ -1,4 +1,4 @@
-# .github/release.yml
+# .github/release.yaml
 
 changelog:
   exclude:
