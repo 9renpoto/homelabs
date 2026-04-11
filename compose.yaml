@@ -21,8 +21,8 @@ services:
       - INSTANCE_NAME=${SEARXNG_INSTANCE_NAME:-homelabs-searxng}
     volumes:
       - type: bind
-        source: ./searxng/settings.yml
-        target: /etc/searxng/settings.yml
+        source: ./searxng/settings.yaml
+        target: /etc/searxng/settings.yaml
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
       interval: 15s

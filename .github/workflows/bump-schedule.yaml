@@ -6,7 +6,7 @@ on:
 
 jobs:
   scheduled_bump:
-    uses: ./.github/workflows/bump.yml
+    uses: ./.github/workflows/bump.yaml
     secrets: inherit
     with:
       semver: minor

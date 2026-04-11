@@ -24,6 +24,12 @@ hadolint openclaw/Dockerfile ollama/Dockerfile
 gitleaks git --pre-commit --staged --no-banner .
 ```
 
+Hyper-V script tests:
+
+```powershell
+pwsh -NoLogo -NoProfile -Command "if (-not (Get-Module -ListAvailable Pester)) { Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }; Invoke-Pester -Path ./infra/hyperv/New-OpenClawK3sVm.Tests.ps1"
+```
+
 Focused Kubernetes validation:
 
 ```sh

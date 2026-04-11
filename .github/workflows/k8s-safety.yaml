@@ -6,7 +6,7 @@ on:
       - "k8s/**"
       - "gitops/**"
       - "policy/kubernetes/**"
-      - ".github/workflows/k8s-safety.yml"
+      - ".github/workflows/k8s-safety.yaml"
   push:
     branches:
       - main
@@ -14,7 +14,7 @@ on:
       - "k8s/**"
       - "gitops/**"
       - "policy/kubernetes/**"
-      - ".github/workflows/k8s-safety.yml"
+      - ".github/workflows/k8s-safety.yaml"
 
 permissions:
   contents: read
