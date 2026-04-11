@@ -8,6 +8,7 @@ Key reminders mirrored here for Copilot sessions:
 - For OpenClaw config changes, edit source-controlled templates under `openclaw/`, not generated files under `state/openclaw/`.
 - Never commit secrets, decrypted `.env` files, `.env.keys`, Kubernetes `Secret` manifests, VM-local secret files, backups, or snapshots.
 - Provider routing is controlled by env vars such as `LOCAL_PRIMARY`, `OLLAMA_SYNC_FALLBACK`, `FALLBACK_GUARD`, and `ALT1_*` / `ALT2_*`.
+- Use Japanese in chat with the user, but write commit messages, pull request text, and review comments in English.
 
 Common commands:
 
