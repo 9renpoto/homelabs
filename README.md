@@ -14,6 +14,13 @@ The current target is a **single home-PC deployment**. A separate staging enviro
 
 Even with that small physical footprint, the repository is also used for **technology validation with production-adjacent building blocks**. Prefer configurations and workflows that stay close to real production operating models rather than home-lab-only shortcuts.
 
+Current IaC direction by layer:
+
+- **Hyper-V host layer:** PowerShell + Hyper-V module
+- **Guest bootstrap layer:** cloud-init
+- **Guest configuration layer:** shell scripts now, with Ansible as the likely next step when configuration management grows
+- **Cluster application layer:** Kustomize + ArgoCD
+
 Current first milestone:
 
 - bring up an Ubuntu VM dedicated to OpenClaw

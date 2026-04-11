@@ -19,6 +19,28 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 - Treat the homelab as a technology-validation environment: prefer production-adjacent building blocks over home-lab-only shortcuts.
 - Structure infrastructure work so it can be rendered, validated, and regression-checked in-repo, similar to an IaC/CDK workflow.
 
+## IaC Technology Selection Direction
+
+### Layer split
+
+- **Hyper-V host layer:** create and manage the VM itself on the Windows host.
+- **Guest bootstrap layer:** establish the Ubuntu VM's initial machine state.
+- **Guest configuration layer:** manage repeatable in-guest operating-system configuration after first boot.
+- **Cluster application layer:** manage Kubernetes resources delivered into k3s through GitOps.
+
+### Current recommendation
+
+- **Hyper-V host layer:** use **PowerShell + Hyper-V module** as the primary IaC surface.
+- **Guest bootstrap layer:** use **cloud-init** for first-boot user, SSH, package, and baseline OS setup.
+- **Guest configuration layer:** keep current shell-based setup for now, but evaluate **Ansible** as the default path when in-guest configuration grows beyond simple bootstrap scripts.
+- **Cluster application layer:** use **Kustomize + ArgoCD** as the default GitOps path.
+
+### Evaluation rules
+
+- Prefer tools with strong native support for their target layer over generic tools that only work through wrappers.
+- Keep Kubernetes delivery Git-native unless there is a clear need for an external state-managed tool.
+- Revisit higher-level generators only when manifest duplication or abstraction pressure becomes hard to manage with the current Kustomize structure.
+
 ## Phase 1 — VM and Cluster Bootstrap (Current)
 
 ### Scope
@@ -55,18 +77,21 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 - Expand the feedback loop for infrastructure changes so work can progress with fast repo-local checks.
 - Favor declarative assets and validation steps that resemble CDK-style iteration, even though the current stack is shell scripts plus Kubernetes manifests.
 - Keep bootstrap scripts, GitOps manifests, and safety policies aligned so changes are testable before they reach the VM.
+- Advance IaC technology selection separately for Hyper-V VM construction and for in-guest configuration management.
 
 ### Deliverables
 
 - Reliable render checks for GitOps-managed Kubernetes resources.
 - Policy and schema validation that gate manifest changes.
 - A documented habit of adding or updating repo-local validation when infrastructure behavior changes materially.
+- A documented default choice for each IaC layer: Hyper-V host, guest bootstrap, guest configuration, and cluster application delivery.
 
 ### Exit Criteria
 
 - Material infrastructure changes have a corresponding repo-local validation path.
 - GitOps manifests remain reviewable without needing immediate access to the target VM.
 - The repo supports iterative infrastructure work with feedback closer to application development workflows.
+- Default IaC choices are clear enough that follow-up work does not reopen the same tooling decision each time.
 
 ## Phase 3 — Runtime Secret Handling and Operator Flow
 
@@ -160,7 +185,10 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 
 1. Keep the Hyper-V → Ubuntu → k3s → ArgoCD → OpenClaw bootstrap path repeatable.
 2. Strengthen repo-local validation so infrastructure changes can be tested before VM rollout.
-3. Verify the VM-local secret workflow for `openclaw-core-env`.
-4. Maintain CI checks for rendered manifests and Kubernetes safety policies.
-5. Keep the Compose path usable for local config iteration and smoke tests.
-6. Decide when, if ever, to migrate Redis, SearXNG, Ollama, and Discord-related pieces into k3s.
+3. Keep **PowerShell + Hyper-V module** as the default for VM construction on the Windows host.
+4. Keep **cloud-init** as the default for first-boot guest bootstrap, and evaluate **Ansible** when in-guest configuration grows beyond bootstrap scripts.
+5. Keep **Kustomize + ArgoCD** as the default for cluster application delivery.
+6. Verify the VM-local secret workflow for `openclaw-core-env`.
+7. Maintain CI checks for rendered manifests and Kubernetes safety policies.
+8. Keep the Compose path usable for local config iteration and smoke tests.
+9. Decide when, if ever, to migrate Redis, SearXNG, Ollama, and Discord-related pieces into k3s.
