@@ -1,0 +1,34 @@
+name: Hyper-V script tests
+
+on:
+  pull_request:
+    paths:
+      - "infra/hyperv/**"
+      - ".github/workflows/hyperv-tests.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/hyperv/**"
+      - ".github/workflows/hyperv-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pester:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Pester
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - name: Run Hyper-V script tests
+        shell: pwsh
+        run: |
+          Invoke-Pester -Path ./infra/hyperv/New-OpenClawK3sVm.Tests.ps1 -CI

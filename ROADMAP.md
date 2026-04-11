@@ -183,12 +183,13 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 
 ## Next Immediate Actions
 
-1. Keep the Hyper-V → Ubuntu → k3s → ArgoCD → OpenClaw bootstrap path repeatable.
-2. Strengthen repo-local validation so infrastructure changes can be tested before VM rollout.
-3. Keep **PowerShell + Hyper-V module** as the default for VM construction on the Windows host.
-4. Keep **cloud-init** as the default for first-boot guest bootstrap, and evaluate **Ansible** when in-guest configuration grows beyond bootstrap scripts.
-5. Keep **Kustomize + ArgoCD** as the default for cluster application delivery.
-6. Verify the VM-local secret workflow for `openclaw-core-env`.
-7. Maintain CI checks for rendered manifests and Kubernetes safety policies.
-8. Keep the Compose path usable for local config iteration and smoke tests.
-9. Decide when, if ever, to migrate Redis, SearXNG, Ollama, and Discord-related pieces into k3s.
+1. Complete the Hyper-V VM construction path first, including script-level tests for `infra/hyperv/New-OpenClawK3sVm.ps1`.
+2. Keep the Hyper-V → Ubuntu → k3s → ArgoCD → OpenClaw bootstrap path repeatable.
+3. Strengthen repo-local validation so infrastructure changes can be tested before VM rollout.
+4. Keep **PowerShell + Hyper-V module** as the default for VM construction on the Windows host.
+5. Keep **cloud-init** as the default for first-boot guest bootstrap, and evaluate **Ansible** when in-guest configuration grows beyond bootstrap scripts.
+6. Keep **Kustomize + ArgoCD** as the default for cluster application delivery.
+7. Verify the VM-local secret workflow for `openclaw-core-env`.
+8. Maintain CI checks for rendered manifests and Kubernetes safety policies.
+9. Keep the Compose path usable for local config iteration and smoke tests.
+10. Decide when, if ever, to migrate Redis, SearXNG, Ollama, and Discord-related pieces into k3s.

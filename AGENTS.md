@@ -70,6 +70,16 @@ docker run --rm -v "$PWD:/work" -w /work registry.k8s.io/kubectl:v1.31.0 kustomi
 
 There is no conventional unit-test suite in this repo; targeted validation is done with Kustomize rendering, schema/policy checks, and the container smoke command above.
 
+### Hyper-V host script tests
+
+Run the Hyper-V PowerShell tests:
+
+```powershell
+pwsh -NoLogo -NoProfile -Command "if (-not (Get-Module -ListAvailable Pester)) { Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }; Invoke-Pester -Path ./infra/hyperv/New-OpenClawK3sVm.Tests.ps1"
+```
+
+This suite mocks the Hyper-V cmdlets, so it validates script behavior without requiring an actual Hyper-V host.
+
 ## High-level architecture
 
 - The repo intentionally keeps **two parallel paths**:

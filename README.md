@@ -21,9 +21,16 @@ Current IaC direction by layer:
 - **Guest configuration layer:** shell scripts now, with Ansible as the likely next step when configuration management grows
 - **Cluster application layer:** Kustomize + ArgoCD
 
+Hyper-V script test entrypoint:
+
+```powershell
+pwsh -NoLogo -NoProfile -Command "if (-not (Get-Module -ListAvailable Pester)) { Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }; Invoke-Pester -Path ./infra/hyperv/New-OpenClawK3sVm.Tests.ps1"
+```
+
 Current first milestone:
 
 - bring up an Ubuntu VM dedicated to OpenClaw
+- complete and test the Hyper-V VM construction path first
 - install k3s and ArgoCD
 - deploy the initial OpenClaw core workload from this public repository
 - keep secrets and runtime-only data outside Git
