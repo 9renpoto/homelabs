@@ -17,9 +17,7 @@
     "defaults": {
       "model": {
         "primary": "google/gemini-2.5-flash-lite",
-        "fallbacks": [
-          "ollama/qwen2.5:3b-instruct-q4_K_M"
-        ]
+        "fallbacks": ["ollama/qwen2.5:3b-instruct-q4_K_M"]
       },
       "bootstrapMaxChars": 1024,
       "bootstrapTotalMaxChars": 4096,
