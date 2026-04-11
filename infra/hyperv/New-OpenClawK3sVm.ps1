@@ -56,5 +56,5 @@ Set-VMFirmware -VMName $Name -BootOrder $dvdDrive, $hardDiskDrive
 Write-Host "Created VM '$Name'."
 Write-Host "Next steps:"
 Write-Host "  1. Boot the VM and complete Ubuntu installation with cloud-init/autoinstall seed data."
-Write-Host "  2. Install k3s in the guest."
-Write-Host "  3. Install ArgoCD and apply gitops/argocd/applications/openclaw-bootstrap.yaml."
+Write-Host "  2. Clone the repository in the guest."
+Write-Host "  3. Run infra/k8s/bootstrap-openclaw-vm.sh in the guest."

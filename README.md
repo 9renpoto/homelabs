@@ -10,12 +10,15 @@ Docker configuration for running OpenClaw (a Captain Claw reimplementation) in a
 
 This repository now includes a greenfield path for running **OpenClaw core on single-node k3s** inside a dedicated Ubuntu VM on Hyper-V.
 
+The current target is a **single home-PC deployment**. A separate staging environment is not part of the baseline design.
+
 Current first milestone:
 
 - bring up an Ubuntu VM dedicated to OpenClaw
 - install k3s and ArgoCD
 - deploy the initial OpenClaw core workload from this public repository
 - keep secrets and runtime-only data outside Git
+- make scrap-and-rebuild reproducible enough that backup automation can stay lower priority for now
 
 Current scope intentionally excludes:
 
@@ -28,6 +31,10 @@ Bootstrap assets:
 
 - `infra/hyperv/New-OpenClawK3sVm.ps1`
 - `infra/cloud-init/openclaw-k3s-user-data.yaml`
+- `infra/k8s/bootstrap-openclaw-vm.sh`
+- `infra/k8s/install-k3s.sh`
+- `infra/k8s/install-argocd.sh`
+- `infra/k8s/bootstrap-openclaw-gitops.sh`
 - `gitops/argocd/kustomization.yaml`
 - `gitops/argocd/projects/openclaw-core.yaml`
 - `gitops/argocd/applications/openclaw-bootstrap.yaml`
@@ -38,8 +45,10 @@ These files are the starting point for a Kubernetes-native deployment and do not
 
 One-time bootstrap flow after ArgoCD is installed:
 
+Run this from a clone of this repository on the VM:
+
 ```sh
-kubectl apply -n argocd -f gitops/argocd/applications/openclaw-bootstrap.yaml
+./infra/k8s/bootstrap-openclaw-gitops.sh
 ```
 
 After that, ArgoCD should reconcile:
@@ -59,6 +68,12 @@ The first milestone is to make the following path repeatable:
 5. inject runtime secrets from a VM-local file
 6. apply the one-time bootstrap `Application`
 7. confirm that `openclaw` becomes healthy in `openclaw-system`
+
+The default operating model is:
+
+- one Hyper-V VM for the homelab environment
+- no separate staging VM in the initial design
+- rebuild the VM from these repo-managed assets when needed
 
 #### 1. Create the VM on the Windows host
 
@@ -98,32 +113,31 @@ Current template responsibilities:
 
 After Ubuntu installation completes and SSH access works:
 
-```sh
-curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 600
-sudo k3s kubectl get nodes
-sudo k3s kubectl get pods -A
-```
-
-For the rest of the runbook, either use `sudo k3s kubectl` directly or export a kubeconfig for your operator session.
-
-Example:
+Run the remaining commands in this runbook from a clone of this repository on the VM.
 
 ```sh
-mkdir -p "${HOME}/.kube"
-sudo cp /etc/rancher/k3s/k3s.yaml "${HOME}/.kube/config"
-sudo chown "$(id -u):$(id -g)" "${HOME}/.kube/config"
+sudo KUBECONFIG_USER="${USER}" ./infra/k8s/bootstrap-openclaw-vm.sh
 kubectl get nodes
+kubectl get pods -A
 ```
+
+This wrapper runs:
+
+- `infra/k8s/install-k3s.sh`
+- `infra/k8s/install-argocd.sh`
+- `infra/k8s/apply-openclaw-core-secret.sh` when `/etc/openclaw/openclaw-core.env` already exists
+- `infra/k8s/bootstrap-openclaw-gitops.sh`
+
+The bootstrap flow still works without the secret file because the `openclaw` Deployment treats that secret as optional.
+
+`install-k3s.sh` also copies `/etc/rancher/k3s/k3s.yaml` into `${HOME}/.kube/config` for the selected operator user.
 
 #### 4. Install ArgoCD
 
-Create the namespace and install the upstream manifests:
+If you want to run the steps separately instead of using the wrapper:
 
 ```sh
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl -n argocd rollout status deployment/argocd-server
-kubectl -n argocd get pods
+./infra/k8s/install-argocd.sh
 ```
 
 At this point, ArgoCD is installed but it is not yet tracking this repository.
@@ -147,8 +161,7 @@ The `openclaw` Deployment treats this secret as optional, so bootstrap can still
 Apply the one-time bootstrap `Application`:
 
 ```sh
-kubectl apply -n argocd -f gitops/argocd/applications/openclaw-bootstrap.yaml
-kubectl -n argocd get applications
+./infra/k8s/bootstrap-openclaw-gitops.sh
 ```
 
 Expected result:
@@ -190,7 +203,7 @@ kubectl -n openclaw-system describe deployment openclaw
 
 #### 9. Lower-priority follow-up: backup and restore
 
-Backup and restore remain important, but they are not the primary success condition for the first bootstrap milestone.
+Backup and restore remain important, but they are not the primary success condition for the first bootstrap milestone. The current priority is reproducible scrap-and-rebuild for a single home-PC installation.
 
 When you are ready to capture runtime state, use:
 
