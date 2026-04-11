@@ -48,6 +48,215 @@ After that, ArgoCD should reconcile:
 - `gitops/argocd/applications/openclaw-core.yaml`
 - `k8s/openclaw-core/base/`
 
+### Hyper-V to OpenClaw runbook
+
+The first milestone is to make the following path repeatable:
+
+1. create the Ubuntu VM on Hyper-V
+2. install Ubuntu with the provided cloud-init seed
+3. install k3s inside the VM
+4. install ArgoCD
+5. inject runtime secrets from a VM-local file
+6. apply the one-time bootstrap `Application`
+7. confirm that `openclaw` becomes healthy in `openclaw-system`
+
+#### 1. Create the VM on the Windows host
+
+Run the Hyper-V helper from Windows PowerShell:
+
+```powershell
+pwsh -File .\infra\hyperv\New-OpenClawK3sVm.ps1 -IsoPath C:\path\to\ubuntu-server.iso
+```
+
+What this script does:
+
+- creates a Gen2 VM
+- creates an 80 GB dynamic VHDX
+- attaches the Ubuntu ISO
+- enables Secure Boot
+- leaves the guest ready for Ubuntu installation
+
+#### 2. Prepare the Ubuntu installer seed
+
+Use `infra/cloud-init/openclaw-k3s-user-data.yaml` as the guest bootstrap template.
+
+Before first boot:
+
+1. replace `REPLACE_WITH_YOUR_PUBLIC_KEY`
+2. choose how to pass the file to the Ubuntu installer
+3. keep the resulting seed outside Git if you add host-specific values
+
+Current template responsibilities:
+
+- creates the `openclaw` operator user
+- installs baseline packages such as `curl`, `git`, and `ufw`
+- enables SSH
+- sets a baseline firewall policy
+- applies `vm.max_map_count`
+
+#### 3. Install k3s in the VM
+
+After Ubuntu installation completes and SSH access works:
+
+```sh
+curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 600
+sudo k3s kubectl get nodes
+sudo k3s kubectl get pods -A
+```
+
+For the rest of the runbook, either use `sudo k3s kubectl` directly or export a kubeconfig for your operator session.
+
+Example:
+
+```sh
+mkdir -p "${HOME}/.kube"
+sudo cp /etc/rancher/k3s/k3s.yaml "${HOME}/.kube/config"
+sudo chown "$(id -u):$(id -g)" "${HOME}/.kube/config"
+kubectl get nodes
+```
+
+#### 4. Install ArgoCD
+
+Create the namespace and install the upstream manifests:
+
+```sh
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl -n argocd rollout status deployment/argocd-server
+kubectl -n argocd get pods
+```
+
+At this point, ArgoCD is installed but it is not yet tracking this repository.
+
+#### 5. Inject runtime secrets from the VM only
+
+This repository stays public, so real runtime values must be created on the VM and applied from there.
+
+```sh
+sudo install -d -m 700 /etc/openclaw
+sudo install -m 600 /dev/null /etc/openclaw/openclaw-core.env
+sudoedit /etc/openclaw/openclaw-core.env
+./infra/k8s/apply-openclaw-core-secret.sh /etc/openclaw/openclaw-core.env
+kubectl -n openclaw-system get secret openclaw-core-env
+```
+
+The `openclaw` Deployment treats this secret as optional, so bootstrap can still proceed before every runtime value is finalized.
+
+#### 6. Bootstrap GitOps
+
+Apply the one-time bootstrap `Application`:
+
+```sh
+kubectl apply -n argocd -f gitops/argocd/applications/openclaw-bootstrap.yaml
+kubectl -n argocd get applications
+```
+
+Expected result:
+
+- `openclaw-bootstrap` syncs `gitops/argocd`
+- ArgoCD creates the `openclaw-core` AppProject and Application
+- `openclaw-core` syncs `k8s/openclaw-core/base`
+
+#### 7. Verify the first OpenClaw rollout
+
+Use these checks in order:
+
+```sh
+kubectl -n argocd get applications
+kubectl -n openclaw-system get all
+kubectl -n openclaw-system get pvc
+kubectl -n openclaw-system rollout status deployment/openclaw
+kubectl -n openclaw-system logs deployment/openclaw --tail=100
+```
+
+Minimum success criteria for the first milestone:
+
+- `openclaw-bootstrap` is `Synced` and `Healthy`
+- `openclaw-core` is `Synced` and `Healthy`
+- namespace `openclaw-system` exists
+- PVC `openclaw-home` is bound
+- Deployment `openclaw` completes rollout
+
+#### 8. Basic maintenance checks
+
+After the cluster is up, use these commands as the first-line operator checks:
+
+```sh
+kubectl get nodes
+kubectl -n argocd get applications
+kubectl -n openclaw-system get pods,svc,ingress,pvc
+kubectl -n openclaw-system describe deployment openclaw
+```
+
+#### 9. Lower-priority follow-up: backup and restore
+
+Backup and restore remain important, but they are not the primary success condition for the first bootstrap milestone.
+
+When you are ready to capture runtime state, use:
+
+```sh
+./infra/k8s/backup-openclaw-core-pvc.sh ./openclaw-home-backup.tgz
+```
+
+When you are intentionally restoring onto a prepared PVC, use:
+
+```sh
+./infra/k8s/restore-openclaw-core-pvc.sh ./openclaw-home-backup.tgz
+```
+
+Also keep these outside Git and in restricted storage:
+
+- `/etc/openclaw/openclaw-core.env`
+- `/etc/rancher/k3s/k3s.yaml`
+- any exported backup archives
+- any VM snapshots
+
+### k3s secret and backup policy
+
+This repository stays public, so **runtime secrets and backup artifacts must stay outside Git**.
+
+Rules for the k3s bootstrap path:
+
+- never commit Kubernetes `Secret` manifests
+- never commit decrypted `.env` files
+- never commit backup archives or VM snapshots
+- keep runtime secret material on the VM with root-readable permissions only
+- use Git for declarative manifests, and use VM-local files plus external backup storage for runtime-only data
+
+The runbook above shows the operator flow. The core rule set remains:
+
+Recommended secret injection flow on the VM:
+
+```sh
+sudo install -d -m 700 /etc/openclaw
+sudo install -m 600 /dev/null /etc/openclaw/openclaw-core.env
+sudoedit /etc/openclaw/openclaw-core.env
+./infra/k8s/apply-openclaw-core-secret.sh /etc/openclaw/openclaw-core.env
+```
+
+Current runtime secret target:
+
+- namespace: `openclaw-system`
+- secret name: `openclaw-core-env`
+
+The `openclaw` Deployment references that secret as an **optional** `envFrom` source, so the first bootstrap can succeed before any real credentials are injected.
+
+Recommended backup scope once the first bootstrap path is stable:
+
+1. Git-managed manifests in this repository
+2. VM-local secret files such as `/etc/openclaw/openclaw-core.env`
+3. PVC contents for `openclaw-home`
+4. k3s admin material stored on the VM and copied to restricted external storage
+
+PVC helper scripts:
+
+```sh
+./infra/k8s/backup-openclaw-core-pvc.sh ./openclaw-home-backup.tgz
+./infra/k8s/restore-openclaw-core-pvc.sh ./openclaw-home-backup.tgz
+```
+
+Restore is intentionally an operator action. Use it only against a fresh or intentionally prepared PVC.
+
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)

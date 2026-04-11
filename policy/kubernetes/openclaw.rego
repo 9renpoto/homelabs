@@ -1,6 +1,11 @@
 package main
 
 deny[msg] {
+  input.kind == "Secret"
+  msg := sprintf("Secret %s must not be committed to the public repository", [input.metadata.name])
+}
+
+deny[msg] {
   input.kind == "Namespace"
   input.metadata.name == "openclaw-system"
   input.metadata.labels["pod-security.kubernetes.io/enforce"] != "baseline"
