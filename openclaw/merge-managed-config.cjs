@@ -13,7 +13,8 @@ const fs = require("node:fs");
  * @param {unknown} value
  * @returns {value is JsonObject}
  */
-const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+const isObject = (value) =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 /**
  * Reads a JSON file and returns an empty object when missing/blank.
@@ -141,7 +142,8 @@ const readOptionalProviders = (slot) => {
  * @returns {JsonObject}
  */
 const sanitizeLegacyDiscordKeys = (cfg) => {
-  const discord = cfg.channels && isObject(cfg.channels) ? cfg.channels.discord : undefined;
+  const discord =
+    cfg.channels && isObject(cfg.channels) ? cfg.channels.discord : undefined;
   if (!isObject(discord)) {
     return cfg;
   }
@@ -152,7 +154,10 @@ const sanitizeLegacyDiscordKeys = (cfg) => {
 
   if (isObject(discord.guilds)) {
     for (const guildConfig of Object.values(discord.guilds)) {
-      if (isObject(guildConfig) && Object.hasOwn(guildConfig, "ignoreOtherMentions")) {
+      if (
+        isObject(guildConfig) &&
+        Object.hasOwn(guildConfig, "ignoreOtherMentions")
+      ) {
         delete guildConfig.ignoreOtherMentions;
       }
     }
@@ -169,14 +174,24 @@ const sanitizeLegacyDiscordKeys = (cfg) => {
  */
 const applyProviderEnv = (cfg) => {
   const providers = ensureObject(ensureObject(cfg, "models"), "providers");
-  const defaultsModel = ensureObject(ensureObject(ensureObject(cfg, "agents"), "defaults"), "model");
+  const defaultsModel = ensureObject(
+    ensureObject(ensureObject(cfg, "agents"), "defaults"),
+    "model",
+  );
 
   const geminiApiKey = (process.env.GEMINI_API_KEY || "").trim();
-  const geminiModel = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
-  const ollamaModel = (process.env.OLLAMA_MODEL || "qwen2.5:3b-instruct-q4_K_M").trim();
-  const localPrimaryPreferred = (process.env.LOCAL_PRIMARY || "").trim() === "1";
-  const useOllamaSyncFallback = (process.env.OLLAMA_SYNC_FALLBACK || "").trim() === "1";
-  const fallbackGuardEnabled = (process.env.FALLBACK_GUARD || "1").trim() !== "0";
+  const geminiModel = (
+    process.env.GEMINI_MODEL || "gemini-2.5-flash-lite"
+  ).trim();
+  const ollamaModel = (
+    process.env.OLLAMA_MODEL || "qwen2.5:3b-instruct-q4_K_M"
+  ).trim();
+  const localPrimaryPreferred =
+    (process.env.LOCAL_PRIMARY || "").trim() === "1";
+  const useOllamaSyncFallback =
+    (process.env.OLLAMA_SYNC_FALLBACK || "").trim() === "1";
+  const fallbackGuardEnabled =
+    (process.env.FALLBACK_GUARD || "1").trim() !== "0";
   const localPrimary = `ollama/${ollamaModel}`;
   const googlePrimary = `google/${geminiModel}`;
   /** @type {string[]} */
@@ -187,8 +202,12 @@ const applyProviderEnv = (cfg) => {
   if (geminiApiKey) {
     const googleProvider = ensureObject(providers, "google");
     googleProvider.api = "google-generative-ai";
-    if (typeof googleProvider.baseUrl !== "string" || !googleProvider.baseUrl.trim()) {
-      googleProvider.baseUrl = "https://generativelanguage.googleapis.com/v1beta";
+    if (
+      typeof googleProvider.baseUrl !== "string" ||
+      !googleProvider.baseUrl.trim()
+    ) {
+      googleProvider.baseUrl =
+        "https://generativelanguage.googleapis.com/v1beta";
     }
     if (!Array.isArray(googleProvider.models)) {
       googleProvider.models = [];
@@ -222,11 +241,17 @@ const applyProviderEnv = (cfg) => {
     pushUnique(fallbacks, `${optionalProvider.id}/${optionalProvider.model}`);
   }
 
-  defaultsModel.fallbacks = fallbacks.filter((entry) => entry !== defaultsModel.primary);
+  defaultsModel.fallbacks = fallbacks.filter(
+    (entry) => entry !== defaultsModel.primary,
+  );
 
   // Guard against a single-provider chain. This keeps free-tier setups running
   // when the current primary hits quota or rate limits.
-  if (fallbackGuardEnabled && Array.isArray(defaultsModel.fallbacks) && defaultsModel.fallbacks.length === 0) {
+  if (
+    fallbackGuardEnabled &&
+    Array.isArray(defaultsModel.fallbacks) &&
+    defaultsModel.fallbacks.length === 0
+  ) {
     if (defaultsModel.primary === googlePrimary) {
       defaultsModel.fallbacks = [localPrimary];
     } else if (geminiApiKey) {
@@ -330,7 +355,9 @@ const syncWorkspaceAgentDocs = (openclawHome, templatesRoot) => {
       continue;
     }
 
-    fs.mkdirSync(mapping.dest.replace(/\/AGENTS\.md$/, ""), { recursive: true });
+    fs.mkdirSync(mapping.dest.replace(/\/AGENTS\.md$/, ""), {
+      recursive: true,
+    });
     fs.copyFileSync(mapping.src, mapping.dest);
   }
 };
@@ -344,7 +371,12 @@ const syncWorkspaceAgentDocs = (openclawHome, templatesRoot) => {
  * @param {string} templatesRoot
  * @returns {void}
  */
-const mergeManagedConfig = (targetPath, managedPath, openclawHome, templatesRoot) => {
+const mergeManagedConfig = (
+  targetPath,
+  managedPath,
+  openclawHome,
+  templatesRoot,
+) => {
   const current = sanitizeLegacyDiscordKeys(readJson(targetPath));
   const managed = readJson(managedPath);
 
@@ -362,7 +394,9 @@ const openclawHome = process.argv[4] || "/home/node/.openclaw";
 const templatesRoot = process.argv[5] || "/usr/local/share/openclaw";
 
 if (!targetPath || !managedPath) {
-  throw new Error("Usage: node merge-managed-config.cjs <targetPath> <managedPath> [openclawHome]");
+  throw new Error(
+    "Usage: node merge-managed-config.cjs <targetPath> <managedPath> [openclawHome]",
+  );
 }
 
 mergeManagedConfig(targetPath, managedPath, openclawHome, templatesRoot);
