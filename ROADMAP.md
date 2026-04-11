@@ -1,166 +1,138 @@
-# OpenClaw Project Roadmap
+# OpenClaw Homelabs Roadmap
 
-This roadmap defines a practical path from local validation on macOS to secure operation on an Ubuntu Linux server.
+This roadmap tracks the current direction of this repository: a greenfield, Kubernetes-native OpenClaw deployment for a single home-PC environment, with reproducible rebuilds as the primary operational goal.
 
 ## Goals
 
-- Run OpenClaw reliably and securely on an Ubuntu Linux server.
-- Use macOS as the initial development and validation environment.
-- Use Discord as the chat platform.
-- Adopt a local, runnable model that fits constrained desktop hardware.
+- Bring up OpenClaw core reliably on a dedicated Ubuntu VM running single-node k3s.
+- Manage deployment from this public repository through ArgoCD.
+- Keep runtime secrets, backup artifacts, and mutable state outside Git.
+- Preserve a Docker Compose path for local validation while the k3s path becomes the primary deployment target.
 
 ## Principles
 
-- Security-first decisions for all server and automation work.
-- Small, testable milestones before production deployment.
-- Keep infrastructure reproducible with Docker and documented runbooks.
+- Prefer reproducible scrap-and-rebuild over backup automation in the first milestone.
+- Keep the first deployed footprint small: OpenClaw core first, optional services later.
+- Use pull-based GitOps for cluster reconciliation.
+- Design for one home-PC installation; separate staging is out of scope for the baseline.
 
-## Phase 1 — Local macOS Baseline (Now)
-
-### Scope
-
-- Confirm OpenClaw starts correctly via Docker on macOS in headless mode.
-- Validate data mounting (`./data/CLAW.REZ` -> container `/data`).
-- Document repeatable local startup and shutdown steps.
-
-### Deliverables
-
-- Verified local run procedure in `README.md`.
-- Known issues list for macOS headless behavior.
-- Basic health checklist for manual validation.
-
-## Phase 2 — Local Model Selection Under Hardware Constraints
+## Phase 1 — VM and Cluster Bootstrap (Current)
 
 ### Scope
 
-- Select a lightweight local model suitable for constrained desktop hardware.
-- Define acceptance criteria: startup time, response latency, memory footprint, and stability.
-- Benchmark 2–3 candidate local models and runtimes.
-
-### Hardware Constraints
-
-- CPU-first inference (no discrete GPU required).
-- Target memory budget: up to 16 GB system RAM.
-- Stable operation under sustained local workloads.
-
-### Candidate Direction
-
-- Prioritize small GGUF-class models with CPU-friendly inference.
-- Keep deployment local-first (no cloud dependency for core functionality).
+- Create a dedicated Ubuntu VM on Hyper-V.
+- Seed the guest with the provided cloud-init template.
+- Install k3s and ArgoCD inside the VM.
+- Bootstrap ArgoCD against this repository.
+- Roll out the initial `openclaw-core` workload into `openclaw-system`.
 
 ### Deliverables
 
-- One selected local model + runtime stack.
-- Benchmark report (latency/memory/quality trade-offs).
-- Local deployment instructions for reproducible setup.
+- Repeatable VM creation flow from `infra/hyperv/New-OpenClawK3sVm.ps1`.
+- Repeatable guest bootstrap using `infra/cloud-init/openclaw-k3s-user-data.yaml`.
+- Working bootstrap scripts in `infra/k8s/`.
+- ArgoCD bootstrap from `gitops/argocd/`.
+- Initial `k8s/openclaw-core/base/` deployment healthy on k3s.
 
-## Phase 3 — Discord Chat Integration
+### Exit Criteria
+
+- `openclaw-bootstrap` is `Synced` and `Healthy`.
+- `openclaw-core` is `Synced` and `Healthy`.
+- Namespace `openclaw-system` exists.
+- PVC `openclaw-home` is bound.
+- Deployment `openclaw` completes rollout.
+
+## Phase 2 — Runtime Secret Handling and Operator Flow
 
 ### Scope
 
-- Integrate Discord bot workflow for chat interactions.
-- Define command surface and message handling rules.
-- Add safety controls (rate limiting, input validation, and error handling).
+- Finalize VM-local secret injection for `openclaw-core-env`.
+- Keep the bootstrap path functional even when the secret is not present yet.
+- Document first-line operator checks and recovery steps.
 
 ### Deliverables
 
-- Discord bot integration design.
-- Minimal command set (`/status`, `/help`, and one gameplay-related command).
-- Local integration test scenario and troubleshooting notes.
+- Stable use of `/etc/openclaw/openclaw-core.env` with `infra/k8s/apply-openclaw-core-secret.sh`.
+- Documented verification flow for rollout, logs, PVC state, and ArgoCD applications.
+- Clear separation between Git-managed manifests and VM-local secret material.
 
-### Task Breakdown (Discord-first)
+### Exit Criteria
 
-#### M3-0: Foundation (Secrets and Bot Registration)
+- Operators can inject or rotate runtime env without editing Git-managed manifests.
+- Bootstrap succeeds before final secrets are available.
+- Health and rollout checks are documented and repeatable.
 
-- Create Discord application and bot user.
-- Store `DISCORD_BOT_TOKEN` outside source control.
-- Define minimum required bot permissions and channel scope.
-
-**Exit criteria:** Bot identity is visible in the target server and secrets are injected via environment variables only.
-
-#### M3-1: Message Bridge MVP (`/ask` only)
-
-- Add a lightweight bridge service (Discord events -> OpenClaw CLI invocation).
-- Implement one slash command: `/ask <message>`.
-- Execute OpenClaw through existing container command path and return response to Discord.
-- Add request timeout handling and user-facing fallback message.
-
-**Exit criteria:** `/ask` returns OpenClaw output reliably in local testing for at least 5 consecutive requests.
-
-#### M3-2: Operational Commands (`/status` and `/help`)
-
-- Implement `/status` to report bridge health, OpenClaw reachability, and Ollama readiness.
-- Implement `/help` to show supported commands and safe usage limits.
-- Standardize response format for success/error cases.
-
-**Exit criteria:** `/status` and `/help` work in the same guild/channel as `/ask` with consistent output.
-
-#### M3-3: Safety Controls
-
-- Add per-user and global rate limits.
-- Validate and sanitize user input length/content before forwarding to OpenClaw.
-- Add retry policy with bounded backoff for transient failures.
-- Add structured error classes (`timeout`, `upstream_unavailable`, `validation_error`).
-
-**Exit criteria:** abusive or malformed inputs are rejected predictably, and transient failures do not crash the bridge.
-
-#### M3-4: Observability and Runbook
-
-- Add structured logs for command start/end, latency, and failure reason.
-- Document local smoke test and troubleshooting flow in repository docs.
-- Add minimal on-call playbook: restart, health checks, and token rotation steps.
-
-**Exit criteria:** operators can diagnose failures from logs and recover service using documented steps.
-
-### Suggested Implementation Order
-
-1. M3-0 Foundation
-2. M3-1 `/ask` MVP
-3. M3-2 `/status` and `/help`
-4. M3-3 Safety controls
-5. M3-4 Observability and runbook
-
-## Phase 4 — Secure Ubuntu Server Deployment
+## Phase 3 — Local Validation Path Maintenance
 
 ### Scope
 
-- Deploy on Ubuntu with hardening and operational safeguards.
-- Reuse container-based setup with environment-specific configuration.
-- Establish observability and incident response basics.
-
-### Security Checklist
-
-- Run services as non-root where possible.
-- Restrict network exposure (firewall rules, least-open ports).
-- Store secrets outside source control.
-- Enable update/patch routine for host and containers.
-- Add backup strategy for persistent data.
+- Keep the Docker Compose path usable for local validation and config iteration.
+- Preserve deterministic OpenClaw defaults through source-controlled managed config and workspace templates.
+- Continue validating provider routing and smoke flows locally.
 
 ### Deliverables
 
-- Ubuntu deployment guide.
-- Production security baseline checklist.
-- Operations runbook (start/stop/restart/logs/recovery).
+- Working Compose stack with `openclaw`, `ollama`, `redis`, and `searxng`.
+- Managed OpenClaw defaults in `openclaw/openclaw.managed.json`.
+- Synced workspace templates from `openclaw/workspace/AGENTS.md` and `openclaw/workspace-smoke/AGENTS.md`.
+- Repeatable smoke command for local agent execution.
 
-## Milestone Exit Criteria
+### Exit Criteria
 
-- **M1 (macOS baseline):** OpenClaw runs locally with repeatable commands.
-- **M2 (model selection):** Local model selected and benchmarked within hardware constraints.
-- **M3 (Discord integration):** Discord bot responds reliably in local testing.
-- **M4 (Ubuntu production-ready):** Hardened deployment validated on Ubuntu.
+- `dotenvx run -- docker compose up -d --build` remains a valid local validation path.
+- Rebuilding `openclaw` applies managed config and workspace template changes predictably.
+- Local provider routing and fallback behavior can be inspected and reproduced.
+
+## Phase 4 — Optional Service Migration and Expansion
+
+### Scope
+
+- Evaluate when to bring Compose-only services into the k3s path.
+- Migrate only after OpenClaw core is stable on Kubernetes.
+- Treat Ollama, Redis, SearXNG, and Discord integration as follow-on work, not first-milestone blockers.
+
+### Deliverables
+
+- Decision record for each optional service: stay local-only, move to k3s, or defer.
+- Kubernetes manifests and policies for any promoted service.
+- Updated operator runbooks for the expanded footprint.
+
+### Exit Criteria
+
+- Each migrated service has a clear operational owner, secret strategy, and validation path.
+- OpenClaw core remains healthy while surrounding services are added incrementally.
+
+## Phase 5 — Backup, Restore, and Operational Hardening
+
+### Scope
+
+- Add controlled backup and restore procedures after the rebuild path is stable.
+- Protect VM-local secrets, kubeconfig, and PVC data in restricted storage.
+- Tighten operational checks without sacrificing rebuild simplicity.
+
+### Deliverables
+
+- Validated usage of `infra/k8s/backup-openclaw-core-pvc.sh`.
+- Validated usage of `infra/k8s/restore-openclaw-core-pvc.sh`.
+- Defined storage locations and handling rules for secret files, kubeconfig, and archives.
+
+### Exit Criteria
+
+- Operators can back up and intentionally restore `openclaw-home` without changing manifests.
+- Backup artifacts remain outside Git and in restricted storage.
+- Restore remains an explicit operator action against a prepared PVC.
 
 ## Risks and Mitigations
 
-- **Hardware limits:** Use smaller quantized models and strict performance budgets.
-- **Discord API changes/rate limits:** Isolate integration layer and add retry/backoff strategy.
-- **Security drift on Ubuntu:** Use periodic audits and a patch cadence.
+- **Public repository exposure:** keep all real secrets, decrypted env files, and backup artifacts outside Git.
+- **Bootstrap drift:** validate Kustomize output, schema conformance, and policy checks in CI and before major manifest changes.
+- **Over-expanding too early:** keep the first milestone limited to OpenClaw core on k3s.
+- **Home-lab recovery complexity:** favor rebuildable infrastructure and VM-local secret injection over fragile in-repo state.
 
 ## Next Immediate Actions
 
-1. Finalize M1 checklist and log current macOS validation results.
-2. Define model benchmark template for M2.
-3. Start M3-0 by preparing Discord app, bot token flow, and env var contract.
-4. Implement M3-1 bridge MVP with `/ask` command only.
-5. Add M3-2 `/status` and `/help` after MVP validation.
-6. Prepare Ubuntu hardening template for M4.
-7. Add Redis-backed middleware for prompt dedupe/state cache and validate fallback behavior.
+1. Keep the Hyper-V → Ubuntu → k3s → ArgoCD → OpenClaw bootstrap path repeatable.
+2. Verify the VM-local secret workflow for `openclaw-core-env`.
+3. Maintain CI checks for rendered manifests and Kubernetes safety policies.
+4. Keep the Compose path usable for local config iteration and smoke tests.
+5. Decide when, if ever, to migrate Redis, SearXNG, Ollama, and Discord-related pieces into k3s.
