@@ -5,6 +5,7 @@ Use `AGENTS.md` at the repository root as the primary source of truth for this r
 Key reminders mirrored here for Copilot sessions:
 
 - The repo has two parallel tracks: the preferred single-node k3s + ArgoCD deployment path, and a Docker Compose path for local headless OpenClaw work.
+- Even though deployment targets one Windows-hosted homelab machine, prefer production-adjacent technology choices and infrastructure changes that can be validated in-repo.
 - For OpenClaw config changes, edit source-controlled templates under `openclaw/`, not generated files under `state/openclaw/`.
 - Never commit secrets, decrypted `.env` files, `.env.keys`, Kubernetes `Secret` manifests, VM-local secret files, backups, or snapshots.
 - Provider routing is controlled by env vars such as `LOCAL_PRIMARY`, `OLLAMA_SYNC_FALLBACK`, `FALLBACK_GUARD`, and `ALT1_*` / `ALT2_*`.
