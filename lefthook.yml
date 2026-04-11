@@ -1,5 +1,7 @@
 pre-commit:
   commands:
+    gitleaks:
+      run: gitleaks git --pre-commit --staged --no-banner .
     hadolint:
       run: hadolint openclaw/Dockerfile ollama/Dockerfile
     typos:

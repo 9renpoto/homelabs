@@ -86,6 +86,10 @@ spec:
             runAsNonRoot: true
             runAsUser: 1000
             runAsGroup: 1000
+          envFrom:
+            - secretRef:
+                name: openclaw-core-env
+                optional: true
           volumeMounts:
             - name: openclaw-home
               mountPath: /home/node/.openclaw
