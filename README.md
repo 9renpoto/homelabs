@@ -12,6 +12,15 @@ This repository now includes a greenfield path for running **OpenClaw core on si
 
 The current target is a **single home-PC deployment**. A separate staging environment is not part of the baseline design.
 
+Even with that small physical footprint, the repository is also used for **technology validation with production-adjacent building blocks**. Prefer configurations and workflows that stay close to real production operating models rather than home-lab-only shortcuts.
+
+Current IaC direction by layer:
+
+- **Hyper-V host layer:** PowerShell + Hyper-V module
+- **Guest bootstrap layer:** cloud-init
+- **Guest configuration layer:** shell scripts now, with Ansible as the likely next step when configuration management grows
+- **Cluster application layer:** Kustomize + ArgoCD
+
 Current first milestone:
 
 - bring up an Ubuntu VM dedicated to OpenClaw
@@ -19,6 +28,7 @@ Current first milestone:
 - deploy the initial OpenClaw core workload from this public repository
 - keep secrets and runtime-only data outside Git
 - make scrap-and-rebuild reproducible enough that backup automation can stay lower priority for now
+- keep infrastructure changes reviewable and testable from the repository before applying them to the VM
 
 Current scope intentionally excludes:
 
@@ -42,6 +52,7 @@ Bootstrap assets:
 - `gitops/argocd/applications/openclaw-core.yaml`
 
 These files are the starting point for a Kubernetes-native deployment and do not yet migrate the existing Docker Compose layout.
+They should also remain suitable for fast repository-driven validation, so infrastructure work can be iterated with a feedback loop closer to CDK-style IaC development.
 
 One-time bootstrap flow after ArgoCD is installed:
 

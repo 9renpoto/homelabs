@@ -93,5 +93,7 @@ There is no conventional unit-test suite in this repo; targeted validation is do
 - Provider routing is **env-driven at startup**. The important knobs are `LOCAL_PRIMARY`, `OLLAMA_SYNC_FALLBACK`, `FALLBACK_GUARD`, and `ALT1_*` / `ALT2_*`. If routing behavior changes, update the managed config and env contract rather than hardcoding runtime state.
 - The current k3s milestone is intentionally **smaller than the Compose stack**: Kubernetes manifests target OpenClaw core first and do not yet migrate Ollama, Redis, SearXNG, or Discord integration.
 - The Kubernetes secret for runtime env is intentionally **optional**. Bootstrap scripts and manifests are designed so the first GitOps rollout can succeed before VM-local credentials are finalized.
+- Although the deployment target is a single Windows-hosted homelab, prefer **production-adjacent technology choices** and infrastructure changes that can be **rendered, validated, and regression-checked in-repo** like an IaC/CDK workflow.
+- Split IaC choices by layer: **PowerShell + Hyper-V module** for VM construction on the Windows host, **cloud-init** for first-boot guest bootstrap, **Ansible** as the likely path for richer in-guest config management, and **Kustomize + ArgoCD** for cluster application delivery.
 - Use **Japanese for chat with the user**, but keep persistent engineering artifacts such as **commit messages, pull request text, and code review comments in English**.
 - Biome is the repo formatter/linter for tracked files, with JavaScript configured for double quotes in `biome.json`.
