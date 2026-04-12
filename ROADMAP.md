@@ -4,11 +4,11 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 
 ## Goals
 
-- Bring up OpenClaw core reliably on a dedicated Ubuntu VM running single-node k3s.
+- Bring up OpenClaw core reliably on single-node k3s inside the existing WSL2 Ubuntu instance.
 - Manage deployment from this public repository through ArgoCD.
 - Keep runtime secrets, backup artifacts, and mutable state outside Git.
 - Preserve a Docker Compose path for local validation while the k3s path becomes the primary deployment target.
-- Use technology choices that stay close to production-grade operating models even when the physical footprint is only one Windows host plus one VM.
+- Use technology choices that stay close to production-grade operating models even when the physical footprint is only one Windows PC with WSL2.
 
 ## Principles
 
@@ -23,15 +23,13 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 
 ### Layer split
 
-- **Hyper-V host layer:** create and manage the VM itself on the Windows host.
-- **Guest bootstrap layer:** establish the Ubuntu VM's initial machine state.
+- **WSL2 layer:** run k3s directly inside the existing WSL2 Ubuntu instance on Windows. A dedicated VM (Hyper-V Pro or Proxmox on separate hardware) is a future option once dedicated hardware is available.
 - **Guest configuration layer:** manage repeatable in-guest operating-system configuration after first boot.
 - **Cluster application layer:** manage Kubernetes resources delivered into k3s through GitOps.
 
 ### Current recommendation
 
-- **Hyper-V host layer:** use **PowerShell + Hyper-V module** as the primary IaC surface.
-- **Guest bootstrap layer:** use **cloud-init** for first-boot user, SSH, package, and baseline OS setup.
+- **WSL2 layer:** use the existing WSL2 Ubuntu instance. Scripts in `infra/k8s/` are Linux-generic and run in WSL2 without modification.
 - **Guest configuration layer:** keep current shell-based setup for now, but evaluate **Ansible** as the default path when in-guest configuration grows beyond simple bootstrap scripts.
 - **Cluster application layer:** use **Kustomize + ArgoCD** as the default GitOps path.
 
@@ -41,21 +39,19 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 - Keep Kubernetes delivery Git-native unless there is a clear need for an external state-managed tool.
 - Revisit higher-level generators only when manifest duplication or abstraction pressure becomes hard to manage with the current Kustomize structure.
 
-## Phase 1 — VM and Cluster Bootstrap (Current)
+## Phase 1 — WSL2 and Cluster Bootstrap (Current)
 
 ### Scope
 
-- Create a dedicated Ubuntu VM on Hyper-V.
-- Seed the guest with the provided cloud-init template.
-- Install k3s and ArgoCD inside the VM.
+- Use the existing WSL2 Ubuntu instance as the k3s host.
+- Install k3s and ArgoCD inside WSL2.
 - Bootstrap ArgoCD against this repository.
 - Roll out the initial `openclaw-core` workload into `openclaw-system`.
-- Keep the bootstrap assets reviewable and testable from the repository before they are applied to the VM.
+- Keep the bootstrap assets reviewable and testable from the repository before they are applied.
 
 ### Deliverables
 
-- Repeatable VM creation flow from `infra/hyperv/New-OpenClawK3sVm.ps1`.
-- Repeatable guest bootstrap using `infra/cloud-init/openclaw-k3s-user-data.yaml`.
+- Repeatable bootstrap flow using `infra/k8s/bootstrap-openclaw-wsl.sh`.
 - Working bootstrap scripts in `infra/k8s/`.
 - ArgoCD bootstrap from `gitops/argocd/`.
 - Initial `k8s/openclaw-core/base/` deployment healthy on k3s.
@@ -97,7 +93,7 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 
 ### Scope
 
-- Finalize VM-local secret injection for `openclaw-core-env`.
+- Finalize local secret injection for `openclaw-core-env`.
 - Keep the bootstrap path functional even when the secret is not present yet.
 - Document first-line operator checks and recovery steps.
 
@@ -105,7 +101,7 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 
 - Stable use of `/etc/openclaw/openclaw-core.env` with `infra/k8s/apply-openclaw-core-secret.sh`.
 - Documented verification flow for rollout, logs, PVC state, and ArgoCD applications.
-- Clear separation between Git-managed manifests and VM-local secret material.
+- Clear separation between Git-managed manifests and local secret material.
 
 ### Exit Criteria
 
@@ -183,13 +179,12 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 
 ## Next Immediate Actions
 
-1. Complete the Hyper-V VM construction path first, including script-level tests for `infra/hyperv/New-OpenClawK3sVm.ps1`.
-2. Keep the Hyper-V → Ubuntu → k3s → ArgoCD → OpenClaw bootstrap path repeatable.
-3. Strengthen repo-local validation so infrastructure changes can be tested before VM rollout.
-4. Keep **PowerShell + Hyper-V module** as the default for VM construction on the Windows host.
-5. Keep **cloud-init** as the default for first-boot guest bootstrap, and evaluate **Ansible** when in-guest configuration grows beyond bootstrap scripts.
-6. Keep **Kustomize + ArgoCD** as the default for cluster application delivery.
-7. Verify the VM-local secret workflow for `openclaw-core-env`.
-8. Maintain CI checks for rendered manifests and Kubernetes safety policies.
-9. Keep the Compose path usable for local config iteration and smoke tests.
-10. Decide when, if ever, to migrate Redis, SearXNG, Ollama, and Discord-related pieces into k3s.
+1. Run `infra/k8s/bootstrap-openclaw-wsl.sh` inside WSL2 to install k3s and ArgoCD.
+2. Keep the WSL2 → k3s → ArgoCD → OpenClaw bootstrap path repeatable.
+3. Strengthen repo-local validation so infrastructure changes can be tested before rollout.
+4. Keep **Kustomize + ArgoCD** as the default for cluster application delivery.
+5. Verify the local secret workflow for `openclaw-core-env`.
+6. Maintain CI checks for rendered manifests and Kubernetes safety policies.
+7. Keep the Compose path usable for local config iteration and smoke tests.
+8. Decide when, if ever, to migrate Redis, SearXNG, Ollama, and Discord-related pieces into k3s.
+9. Evaluate a separate WSL2 instance or dedicated hardware (Proxmox) for stronger isolation in a future security phase.
