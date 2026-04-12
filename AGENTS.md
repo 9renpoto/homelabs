@@ -72,23 +72,19 @@ There is no conventional unit-test suite in this repo; targeted validation is do
 
 ### Hyper-V host script tests
 
-Run the Hyper-V PowerShell tests:
+Shell script validation:
 
-```powershell
-pwsh -NoLogo -NoProfile -Command "if (-not (Get-Module -ListAvailable Pester)) { Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }; Invoke-Pester -Path ./infra/hyperv/"
+```sh
+shellcheck infra/k8s/*.sh
 ```
-
-This suite mocks the Hyper-V cmdlets, so it validates script behavior without requiring an actual Hyper-V host.
 
 ## High-level architecture
 
 - The repo intentionally keeps **two parallel paths**:
-  - **Preferred deployment path:** single-node k3s inside a dedicated Ubuntu VM, bootstrapped with ArgoCD and reconciled from this public repo.
+  - **Preferred deployment path:** single-node k3s inside the existing WSL2 Ubuntu instance, bootstrapped with ArgoCD and reconciled from this public repo. A dedicated VM (Hyper-V Pro or Proxmox on separate hardware) is a future option.
   - **Local/runtime path:** Docker Compose stack for headless OpenClaw with `openclaw`, `ollama`, `redis`, and `searxng`.
-- The **k3s/GitOps flow** starts in `infra/`:
-  - `infra/packer/` builds a pre-installed Ubuntu VHDX with Packer.
-  - `infra/hyperv/` deploys the VHDX as a Hyper-V VM.
-  - `infra/k8s/bootstrap-openclaw-vm.sh` orchestrates `install-k3s.sh`, `install-argocd.sh`, optional secret application, and `bootstrap-openclaw-gitops.sh`.
+- The **k3s/GitOps flow** starts in `infra/k8s/`:
+  - `infra/k8s/bootstrap-openclaw-wsl.sh` orchestrates `install-k3s.sh`, `install-argocd.sh`, optional secret application, and `bootstrap-openclaw-gitops.sh`.
   - `gitops/argocd/applications/openclaw-bootstrap.yaml` bootstraps ArgoCD against `gitops/argocd/`, which then creates the `openclaw-core` AppProject/Application and syncs `k8s/openclaw-core/base`.
 - The **first Kubernetes milestone deploys only OpenClaw core**. `k8s/openclaw-core/base/deployment-openclaw.yaml` mounts a PVC at `/home/node/.openclaw`, seeds `openclaw.json` from a ConfigMap on first boot, and reads runtime env from the optional `openclaw-core-env` secret.
 - The **Compose/OpenClaw path** builds a thin wrapper image in `openclaw/`. The image adds `openclaw/openclaw.managed.json`, workspace `AGENTS.md` templates, `merge-managed-config.cjs`, and `entrypoint.sh` on top of the upstream OpenClaw image.
@@ -104,6 +100,6 @@ This suite mocks the Hyper-V cmdlets, so it validates script behavior without re
 - The current k3s milestone is intentionally **smaller than the Compose stack**: Kubernetes manifests target OpenClaw core first and do not yet migrate Ollama, Redis, SearXNG, or Discord integration.
 - The Kubernetes secret for runtime env is intentionally **optional**. Bootstrap scripts and manifests are designed so the first GitOps rollout can succeed before VM-local credentials are finalized.
 - Although the deployment target is a single Windows-hosted homelab, prefer **production-adjacent technology choices** and infrastructure changes that can be **rendered, validated, and regression-checked in-repo** like an IaC/CDK workflow.
-- Split IaC choices by layer: **PowerShell + Hyper-V module** for VM construction on the Windows host, **cloud-init** for first-boot guest bootstrap, **Ansible** as the likely path for richer in-guest config management, and **Kustomize + ArgoCD** for cluster application delivery.
+- Split IaC choices by layer: **WSL2** as the current k3s host (existing Ubuntu instance), **Ansible** as the likely path for richer in-guest config management, and **Kustomize + ArgoCD** for cluster application delivery.
 - Use **Japanese for chat with the user**, but keep persistent engineering artifacts such as **commit messages, pull request text, and code review comments in English**.
 - Biome is the repo formatter/linter for tracked files, with JavaScript configured for double quotes in `biome.json`.

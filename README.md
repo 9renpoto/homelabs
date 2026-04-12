@@ -8,49 +8,37 @@ Docker configuration for running OpenClaw (a Captain Claw reimplementation) in a
 
 ## Experimental k3s bootstrap
 
-This repository now includes a greenfield path for running **OpenClaw core on single-node k3s** inside a dedicated Ubuntu VM on Hyper-V.
+This repository includes a greenfield path for running **OpenClaw core on single-node k3s** inside WSL2.
 
-The current target is a **single home-PC deployment**. A separate staging environment is not part of the baseline design.
+The current target is a **single home-PC deployment using the existing WSL2 Ubuntu instance**.
+A separate environment is not part of the baseline design.
 
 Even with that small physical footprint, the repository is also used for **technology validation with production-adjacent building blocks**. Prefer configurations and workflows that stay close to real production operating models rather than home-lab-only shortcuts.
 
 Current IaC direction by layer:
 
-- **Hyper-V host layer:** PowerShell + Hyper-V module
-- **Guest bootstrap layer:** cloud-init
+- **WSL2 layer:** existing Ubuntu instance on Windows (Hyper-V Pro/dedicated machine is a future option)
 - **Guest configuration layer:** shell scripts now, with Ansible as the likely next step when configuration management grows
 - **Cluster application layer:** Kustomize + ArgoCD
 
-Hyper-V script test entrypoint:
-
-```powershell
-pwsh -NoLogo -NoProfile -Command "if (-not (Get-Module -ListAvailable Pester)) { Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }; Invoke-Pester -Path ./infra/hyperv/"
-```
-
 Current first milestone:
 
-- bring up an Ubuntu VM dedicated to OpenClaw
-- complete and test the Hyper-V VM construction path first
-- install k3s and ArgoCD
+- install k3s and ArgoCD inside the WSL2 Ubuntu instance
 - deploy the initial OpenClaw core workload from this public repository
 - keep secrets and runtime-only data outside Git
 - make scrap-and-rebuild reproducible enough that backup automation can stay lower priority for now
-- keep infrastructure changes reviewable and testable from the repository before applying them to the VM
+- keep infrastructure changes reviewable and testable from the repository before applying them
 
 Current scope intentionally excludes:
 
-- Ollama
+- Ollama (k3s path — GPU device plugin is a follow-on phase)
 - Redis
 - SearXNG
 - Discord integration
 
 Bootstrap assets:
 
-- `infra/packer/openclaw-k3s.pkr.hcl`
-- `infra/packer/http/user-data.tmpl`
-- `infra/packer/build.ps1`
-- `infra/hyperv/Deploy-OpenClawK3sVm.ps1`
-- `infra/k8s/bootstrap-openclaw-vm.sh`
+- `infra/k8s/bootstrap-openclaw-wsl.sh`
 - `infra/k8s/install-k3s.sh`
 - `infra/k8s/install-argocd.sh`
 - `infra/k8s/bootstrap-openclaw-gitops.sh`
@@ -65,7 +53,7 @@ They should also remain suitable for fast repository-driven validation, so infra
 
 One-time bootstrap flow after ArgoCD is installed:
 
-Run this from a clone of this repository on the VM:
+Run this from a clone of this repository inside WSL2:
 
 ```sh
 ./infra/k8s/bootstrap-openclaw-gitops.sh
@@ -79,124 +67,87 @@ After that, ArgoCD should reconcile:
 
 ### Windows host prerequisites
 
-The Packer build and VM deploy scripts run on the Windows host (as Administrator).
-Use [winget](https://learn.microsoft.com/windows/package-manager/winget/) to install the required tools.
+The k3s bootstrap scripts run inside the WSL2 Ubuntu environment.
+The only Windows-side requirement is [WSL2](https://learn.microsoft.com/windows/wsl/install) with an Ubuntu distribution.
 
-#### 1. Enable Hyper-V
-
-Run in an elevated PowerShell session:
-
-```powershell
-Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
-# Restart when prompted
-```
-
-#### 2. Install required tools
-
-```powershell
-winget install --id Microsoft.PowerShell        --exact --silent
-winget install --id Hashicorp.Packer            --exact --silent
-winget install --id Git.Git                     --exact --silent
-```
-
-After installation, open a new terminal so the updated `PATH` takes effect.
-
-Verify:
-
-```powershell
-pwsh --version
-packer --version
-git --version
-```
-
-#### 3. Generate an SSH key pair (if you don't have one)
-
-```powershell
-ssh-keygen -t ed25519 -C "your-email@example.com"
-# Default output: $env:USERPROFILE\.ssh\id_ed25519 and id_ed25519.pub
-```
-
-The public key (`id_ed25519.pub`) is passed to `build.ps1` as `-SshPublicKey` and injected into the VM at build time.
-Keep the private key (`id_ed25519`) on the Windows host for SSH access and Packer communication.
-
-#### 4. Build the base VHDX with Packer
+#### 1. Enable WSL2 and install Ubuntu
 
 From an elevated PowerShell session:
 
 ```powershell
-cd infra\packer
-.\build.ps1 `
-  -SshPublicKey (Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub" -Raw).Trim() `
-  -SshPrivateKeyFile "$env:USERPROFILE\.ssh\id_ed25519"
+wsl --install
+# Restart when prompted, then Ubuntu will launch and ask for a username/password
 ```
 
-Packer downloads the Ubuntu 24.04 LTS ISO, runs an automated install over the NoCloud HTTP server, and produces a pre-installed VHDX under `infra\packer\output-openclaw-k3s\`.
-
-To use a locally cached ISO instead of downloading it:
+If WSL is already installed but Ubuntu is not:
 
 ```powershell
-.\build.ps1 `
-  -SshPublicKey (Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub" -Raw).Trim() `
-  -SshPrivateKeyFile "$env:USERPROFILE\.ssh\id_ed25519" `
-  -IsoUrl "file:///C:/isos/ubuntu-24.04.2-live-server-amd64.iso" `
-  -IsoChecksum "sha256:d6dab0c3a657988501b4bd76dea6af13a7e42f26c59f91c40f3a8b7fa4f2b052"
+wsl --install -d Ubuntu
 ```
 
-#### 5. Deploy the VM from the VHDX
+#### 2. Enable systemd (required for k3s)
 
-```powershell
-cd infra\hyperv
-.\Deploy-OpenClawK3sVm.ps1 `
-  -VhdxSourcePath "..\packer\output-openclaw-k3s\openclaw-k3s-base\Virtual Hard Disks\openclaw-k3s-base.vhdx" `
-  -Start
+Inside the Ubuntu WSL2 terminal, create or update `/etc/wsl.conf`:
+
+```sh
+sudo tee /etc/wsl.conf > /dev/null <<'EOF'
+[boot]
+systemd=true
+EOF
 ```
 
-This copies the VHDX to `C:\Hyper-V\openclaw-k3s\`, creates a Gen2 VM with Secure Boot, and optionally starts it.
-
-Find the VM IP after boot:
+Then restart the instance from PowerShell:
 
 ```powershell
-Get-VM -Name "openclaw-k3s" | Get-VMNetworkAdapter | Select-Object IPAddresses
+wsl --shutdown
+wsl
+```
+
+Verify:
+
+```sh
+systemctl is-system-running
+```
+
+#### 3. Clone this repository inside WSL2
+
+```sh
+git clone https://github.com/9renpoto/homelabs.git
+cd homelabs
+```
+
+#### 4. Run the bootstrap
+
+```sh
+sudo KUBECONFIG_USER="${USER}" ./infra/k8s/bootstrap-openclaw-wsl.sh
+kubectl get nodes
+kubectl get pods -A
 ```
 
 ---
 
-### Hyper-V to OpenClaw runbook
+### WSL2 to OpenClaw runbook
 
 The first milestone is to make the following path repeatable:
 
-1. build a pre-installed Ubuntu VHDX with Packer
-2. deploy the VM from the VHDX on Hyper-V
-3. install k3s inside the VM
-4. install ArgoCD
-5. inject runtime secrets from a VM-local file
-6. apply the one-time bootstrap `Application`
-7. confirm that `openclaw` becomes healthy in `openclaw-system`
+1. install k3s inside WSL2
+2. install ArgoCD
+3. inject runtime secrets from a local file
+4. apply the one-time bootstrap `Application`
+5. confirm that `openclaw` becomes healthy in `openclaw-system`
 
 The default operating model is:
 
-- one Hyper-V VM for the homelab environment
-- no separate staging VM in the initial design
-- rebuild the VM from these repo-managed assets when needed
+- one WSL2 Ubuntu instance for the homelab environment
+- no separate staging environment in the initial design
+- rebuild from these repo-managed assets when needed
 
-#### 1. Build and deploy the VM
+#### 1. Bootstrap k3s and ArgoCD
 
-Follow the [Windows host prerequisites](#windows-host-prerequisites) section above to build the VHDX with Packer and deploy the VM with `Deploy-OpenClawK3sVm.ps1`.
-
-Once the VM is running, confirm SSH access:
-
-```powershell
-ssh openclaw@<vm-ip>
-```
-
-#### 2. Install k3s in the VM
-
-After Ubuntu installation completes and SSH access works:
-
-Run the remaining commands in this runbook from a clone of this repository on the VM.
+Run from a clone of this repository inside WSL2:
 
 ```sh
-sudo KUBECONFIG_USER="${USER}" ./infra/k8s/bootstrap-openclaw-vm.sh
+sudo KUBECONFIG_USER="${USER}" ./infra/k8s/bootstrap-openclaw-wsl.sh
 kubectl get nodes
 kubectl get pods -A
 ```
@@ -212,19 +163,9 @@ The bootstrap flow still works without the secret file because the `openclaw` De
 
 `install-k3s.sh` also copies `/etc/rancher/k3s/k3s.yaml` into `${HOME}/.kube/config` for the selected operator user.
 
-#### 4. Install ArgoCD
+#### 2. Inject runtime secrets locally
 
-If you want to run the steps separately instead of using the wrapper:
-
-```sh
-./infra/k8s/install-argocd.sh
-```
-
-At this point, ArgoCD is installed but it is not yet tracking this repository.
-
-#### 5. Inject runtime secrets from the VM only
-
-This repository stays public, so real runtime values must be created on the VM and applied from there.
+This repository stays public, so real runtime values must be created locally and applied from WSL2.
 
 ```sh
 sudo install -d -m 700 /etc/openclaw
@@ -236,7 +177,7 @@ kubectl -n openclaw-system get secret openclaw-core-env
 
 The `openclaw` Deployment treats this secret as optional, so bootstrap can still proceed before every runtime value is finalized.
 
-#### 6. Bootstrap GitOps
+#### 3. Bootstrap GitOps
 
 Apply the one-time bootstrap `Application`:
 
@@ -250,7 +191,7 @@ Expected result:
 - ArgoCD creates the `openclaw-core` AppProject and Application
 - `openclaw-core` syncs `k8s/openclaw-core/base`
 
-#### 7. Verify the first OpenClaw rollout
+#### 4. Verify the first OpenClaw rollout
 
 Use these checks in order:
 
@@ -270,7 +211,7 @@ Minimum success criteria for the first milestone:
 - PVC `openclaw-home` is bound
 - Deployment `openclaw` completes rollout
 
-#### 8. Basic maintenance checks
+#### 5. Basic maintenance checks
 
 After the cluster is up, use these commands as the first-line operator checks:
 
@@ -281,7 +222,7 @@ kubectl -n openclaw-system get pods,svc,ingress,pvc
 kubectl -n openclaw-system describe deployment openclaw
 ```
 
-#### 9. Lower-priority follow-up: backup and restore
+#### 6. Lower-priority follow-up: backup and restore
 
 Backup and restore remain important, but they are not the primary success condition for the first bootstrap milestone. The current priority is reproducible scrap-and-rebuild for a single home-PC installation.
 
@@ -302,7 +243,6 @@ Also keep these outside Git and in restricted storage:
 - `/etc/openclaw/openclaw-core.env`
 - `/etc/rancher/k3s/k3s.yaml`
 - any exported backup archives
-- any VM snapshots
 
 ### k3s secret and backup policy
 
@@ -312,13 +252,13 @@ Rules for the k3s bootstrap path:
 
 - never commit Kubernetes `Secret` manifests
 - never commit decrypted `.env` files
-- never commit backup archives or VM snapshots
-- keep runtime secret material on the VM with root-readable permissions only
-- use Git for declarative manifests, and use VM-local files plus external backup storage for runtime-only data
+- never commit backup archives
+- keep runtime secret material in WSL2 with root-readable permissions only
+- use Git for declarative manifests, and use local files plus external backup storage for runtime-only data
 
 The runbook above shows the operator flow. The core rule set remains:
 
-Recommended secret injection flow on the VM:
+Recommended secret injection flow in WSL2:
 
 ```sh
 sudo install -d -m 700 /etc/openclaw
@@ -337,9 +277,9 @@ The `openclaw` Deployment references that secret as an **optional** `envFrom` so
 Recommended backup scope once the first bootstrap path is stable:
 
 1. Git-managed manifests in this repository
-2. VM-local secret files such as `/etc/openclaw/openclaw-core.env`
+2. Local secret files such as `/etc/openclaw/openclaw-core.env`
 3. PVC contents for `openclaw-home`
-4. k3s admin material stored on the VM and copied to restricted external storage
+4. k3s admin material stored locally and copied to restricted external storage
 
 PVC helper scripts:
 

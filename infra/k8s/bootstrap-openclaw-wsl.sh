@@ -7,7 +7,7 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-operator_user="${KUBECONFIG_USER:-${SUDO_USER:-openclaw}}"
+operator_user="${KUBECONFIG_USER:-${SUDO_USER:-$USER}}"
 secret_env_file="${SECRET_ENV_FILE:-/etc/openclaw/openclaw-core.env}"
 
 KUBECONFIG_USER="$operator_user" "$script_dir/install-k3s.sh"
@@ -22,4 +22,4 @@ fi
 
 "$script_dir/bootstrap-openclaw-gitops.sh"
 
-echo "openclaw VM bootstrap finished for operator user $operator_user"
+echo "openclaw WSL bootstrap finished for operator user $operator_user"
