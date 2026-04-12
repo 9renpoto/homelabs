@@ -75,7 +75,7 @@ There is no conventional unit-test suite in this repo; targeted validation is do
 Run the Hyper-V PowerShell tests:
 
 ```powershell
-pwsh -NoLogo -NoProfile -Command "if (-not (Get-Module -ListAvailable Pester)) { Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }; Invoke-Pester -Path ./infra/hyperv/New-OpenClawK3sVm.Tests.ps1"
+pwsh -NoLogo -NoProfile -Command "if (-not (Get-Module -ListAvailable Pester)) { Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }; Invoke-Pester -Path ./infra/hyperv/"
 ```
 
 This suite mocks the Hyper-V cmdlets, so it validates script behavior without requiring an actual Hyper-V host.
@@ -86,8 +86,8 @@ This suite mocks the Hyper-V cmdlets, so it validates script behavior without re
   - **Preferred deployment path:** single-node k3s inside a dedicated Ubuntu VM, bootstrapped with ArgoCD and reconciled from this public repo.
   - **Local/runtime path:** Docker Compose stack for headless OpenClaw with `openclaw`, `ollama`, `redis`, and `searxng`.
 - The **k3s/GitOps flow** starts in `infra/`:
-  - `infra/hyperv/` creates the VM.
-  - `infra/cloud-init/openclaw-k3s-user-data.yaml` seeds the Ubuntu guest.
+  - `infra/packer/` builds a pre-installed Ubuntu VHDX with Packer.
+  - `infra/hyperv/` deploys the VHDX as a Hyper-V VM.
   - `infra/k8s/bootstrap-openclaw-vm.sh` orchestrates `install-k3s.sh`, `install-argocd.sh`, optional secret application, and `bootstrap-openclaw-gitops.sh`.
   - `gitops/argocd/applications/openclaw-bootstrap.yaml` bootstraps ArgoCD against `gitops/argocd/`, which then creates the `openclaw-core` AppProject/Application and syncs `k8s/openclaw-core/base`.
 - The **first Kubernetes milestone deploys only OpenClaw core**. `k8s/openclaw-core/base/deployment-openclaw.yaml` mounts a PVC at `/home/node/.openclaw`, seeds `openclaw.json` from a ConfigMap on first boot, and reads runtime env from the optional `openclaw-core-env` secret.

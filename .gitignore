@@ -4,3 +4,7 @@
 # local secret keys for dotenvx (must never be committed)
 .env.keys
 .env.key
+
+# Packer build artifacts and generated files
+infra/packer/output-*/
+infra/packer/http/user-data

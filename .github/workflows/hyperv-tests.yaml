@@ -31,4 +31,4 @@ jobs:
       - name: Run Hyper-V script tests
         shell: pwsh
         run: |
-          Invoke-Pester -Path ./infra/hyperv/New-OpenClawK3sVm.Tests.ps1 -CI
+          Invoke-Pester -Path ./infra/hyperv/ -CI
