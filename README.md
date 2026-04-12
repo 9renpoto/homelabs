@@ -75,12 +75,96 @@ After that, ArgoCD should reconcile:
 - `gitops/argocd/applications/openclaw-core.yaml`
 - `k8s/openclaw-core/base/`
 
+### Windows host prerequisites
+
+The Packer build and VM deploy scripts run on the Windows host (as Administrator).
+Use [winget](https://learn.microsoft.com/windows/package-manager/winget/) to install the required tools.
+
+#### 1. Enable Hyper-V
+
+Run in an elevated PowerShell session:
+
+```powershell
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+# Restart when prompted
+```
+
+#### 2. Install required tools
+
+```powershell
+winget install --id Microsoft.PowerShell        --exact --silent
+winget install --id Hashicorp.Packer            --exact --silent
+winget install --id Git.Git                     --exact --silent
+```
+
+After installation, open a new terminal so the updated `PATH` takes effect.
+
+Verify:
+
+```powershell
+pwsh --version
+packer --version
+git --version
+```
+
+#### 3. Generate an SSH key pair (if you don't have one)
+
+```powershell
+ssh-keygen -t ed25519 -C "your-email@example.com"
+# Default output: $env:USERPROFILE\.ssh\id_ed25519 and id_ed25519.pub
+```
+
+The public key (`id_ed25519.pub`) is passed to `build.ps1` as `-SshPublicKey` and injected into the VM at build time.
+Keep the private key (`id_ed25519`) on the Windows host for SSH access and Packer communication.
+
+#### 4. Build the base VHDX with Packer
+
+From an elevated PowerShell session:
+
+```powershell
+cd infra\packer
+.\build.ps1 `
+  -SshPublicKey (Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub" -Raw).Trim() `
+  -SshPrivateKeyFile "$env:USERPROFILE\.ssh\id_ed25519"
+```
+
+Packer downloads the Ubuntu 24.04 LTS ISO, runs an automated install over the NoCloud HTTP server, and produces a pre-installed VHDX under `infra\packer\output-openclaw-k3s\`.
+
+To use a locally cached ISO instead of downloading it:
+
+```powershell
+.\build.ps1 `
+  -SshPublicKey (Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub" -Raw).Trim() `
+  -SshPrivateKeyFile "$env:USERPROFILE\.ssh\id_ed25519" `
+  -IsoUrl "file:///C:/isos/ubuntu-24.04.2-live-server-amd64.iso" `
+  -IsoChecksum "sha256:d6dab0c3a657988501b4bd76dea6af13a7e42f26c59f91c40f3a8b7fa4f2b052"
+```
+
+#### 5. Deploy the VM from the VHDX
+
+```powershell
+cd infra\hyperv
+.\Deploy-OpenClawK3sVm.ps1 `
+  -VhdxSourcePath "..\packer\output-openclaw-k3s\openclaw-k3s-base\Virtual Hard Disks\openclaw-k3s-base.vhdx" `
+  -Start
+```
+
+This copies the VHDX to `C:\Hyper-V\openclaw-k3s\`, creates a Gen2 VM with Secure Boot, and optionally starts it.
+
+Find the VM IP after boot:
+
+```powershell
+Get-VM -Name "openclaw-k3s" | Get-VMNetworkAdapter | Select-Object IPAddresses
+```
+
+---
+
 ### Hyper-V to OpenClaw runbook
 
 The first milestone is to make the following path repeatable:
 
-1. create the Ubuntu VM on Hyper-V
-2. install Ubuntu with the provided cloud-init seed
+1. build a pre-installed Ubuntu VHDX with Packer
+2. deploy the VM from the VHDX on Hyper-V
 3. install k3s inside the VM
 4. install ArgoCD
 5. inject runtime secrets from a VM-local file
@@ -93,39 +177,25 @@ The default operating model is:
 - no separate staging VM in the initial design
 - rebuild the VM from these repo-managed assets when needed
 
-#### 1. Create the VM on the Windows host
+#### 1. Build and deploy the VM
 
-Run the Hyper-V helper from Windows PowerShell:
+Follow the [Windows host prerequisites](#windows-host-prerequisites) section above to build the VHDX with Packer and deploy the VM with `Deploy-OpenClawK3sVm.ps1`.
+
+Once the VM is running, confirm SSH access:
+
+```powershell
+ssh openclaw@<vm-ip>
+```
+
+#### 2. (Legacy) Create the VM from an ISO manually
+
+If you prefer a manual install instead of Packer, use the legacy helper:
 
 ```powershell
 pwsh -File .\infra\hyperv\New-OpenClawK3sVm.ps1 -IsoPath C:\path\to\ubuntu-server.iso
 ```
 
-What this script does:
-
-- creates a Gen2 VM
-- creates an 80 GB dynamic VHDX
-- attaches the Ubuntu ISO
-- enables Secure Boot
-- leaves the guest ready for Ubuntu installation
-
-#### 2. Prepare the Ubuntu installer seed
-
-Use `infra/cloud-init/openclaw-k3s-user-data.yaml` as the guest bootstrap template.
-
-Before first boot:
-
-1. replace `REPLACE_WITH_YOUR_PUBLIC_KEY`
-2. choose how to pass the file to the Ubuntu installer
-3. keep the resulting seed outside Git if you add host-specific values
-
-Current template responsibilities:
-
-- creates the `openclaw` operator user
-- installs baseline packages such as `curl`, `git`, and `ufw`
-- enables SSH
-- sets a baseline firewall policy
-- applies `vm.max_map_count`
+Then use `infra/cloud-init/openclaw-k3s-user-data.yaml` as the Ubuntu installer seed (replace `REPLACE_WITH_YOUR_PUBLIC_KEY` before first boot).
 
 #### 3. Install k3s in the VM
 
