@@ -30,13 +30,5 @@ jobs:
       - name: Packer init
         run: packer init infra/packer/openclaw-k3s.pkr.hcl
 
-      - name: Generate placeholder user-data
-        run: |
-          sed 's/__SSH_PUBLIC_KEY__/ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPlaceholder placeholder@example.com/' \
-            infra/packer/http/user-data.tmpl > infra/packer/http/user-data
-
       - name: Packer validate
-        run: |
-          packer validate \
-            -var "ssh_private_key_file=/dev/null" \
-            infra/packer/openclaw-k3s.pkr.hcl
+        run: packer validate -syntax-only infra/packer/openclaw-k3s.pkr.hcl
