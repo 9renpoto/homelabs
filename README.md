@@ -24,7 +24,7 @@ Current IaC direction by layer:
 Hyper-V script test entrypoint:
 
 ```powershell
-pwsh -NoLogo -NoProfile -Command "if (-not (Get-Module -ListAvailable Pester)) { Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }; Invoke-Pester -Path ./infra/hyperv/New-OpenClawK3sVm.Tests.ps1"
+pwsh -NoLogo -NoProfile -Command "if (-not (Get-Module -ListAvailable Pester)) { Set-PSRepository PSGallery -InstallationPolicy Trusted; Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }; Invoke-Pester -Path ./infra/hyperv/"
 ```
 
 Current first milestone:
@@ -46,8 +46,10 @@ Current scope intentionally excludes:
 
 Bootstrap assets:
 
-- `infra/hyperv/New-OpenClawK3sVm.ps1`
-- `infra/cloud-init/openclaw-k3s-user-data.yaml`
+- `infra/packer/openclaw-k3s.pkr.hcl`
+- `infra/packer/http/user-data.tmpl`
+- `infra/packer/build.ps1`
+- `infra/hyperv/Deploy-OpenClawK3sVm.ps1`
 - `infra/k8s/bootstrap-openclaw-vm.sh`
 - `infra/k8s/install-k3s.sh`
 - `infra/k8s/install-argocd.sh`
@@ -187,17 +189,7 @@ Once the VM is running, confirm SSH access:
 ssh openclaw@<vm-ip>
 ```
 
-#### 2. (Legacy) Create the VM from an ISO manually
-
-If you prefer a manual install instead of Packer, use the legacy helper:
-
-```powershell
-pwsh -File .\infra\hyperv\New-OpenClawK3sVm.ps1 -IsoPath C:\path\to\ubuntu-server.iso
-```
-
-Then use `infra/cloud-init/openclaw-k3s-user-data.yaml` as the Ubuntu installer seed (replace `REPLACE_WITH_YOUR_PUBLIC_KEY` before first boot).
-
-#### 3. Install k3s in the VM
+#### 2. Install k3s in the VM
 
 After Ubuntu installation completes and SSH access works:
 
