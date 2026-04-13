@@ -1,20 +1,32 @@
 version: 2
 updates:
   - package-ecosystem: docker
-    directory: "/openclaw"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "Type: Maintenance"
-  - package-ecosystem: docker
     directory: "/ollama"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "03:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
     labels:
+      - "Type: Dependencies"
       - "Type: Maintenance"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "03:30"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     labels:
-      - "Type: Maintenance"
+      - "Type: Dependencies"
+      - "Type: CI"
