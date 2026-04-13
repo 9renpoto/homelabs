@@ -1,7 +1,9 @@
 /data/
 /state/
+/.tmp/
 
-# local secret keys for dotenvx (must never be committed)
+# local secret material (must never be committed)
+.env
 .env.keys
 .env.key
 

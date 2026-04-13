@@ -8,16 +8,16 @@ fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 operator_user="${KUBECONFIG_USER:-${SUDO_USER:-$USER}}"
-secret_env_file="${SECRET_ENV_FILE:-/etc/openclaw/openclaw-core.env}"
+secret_source_dir="${SECRET_SOURCE_DIR:-/etc/openclaw/openclaw-core-secret}"
 
 KUBECONFIG_USER="$operator_user" "$script_dir/install-k3s.sh"
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 "$script_dir/install-argocd.sh"
 
-if [[ -f "$secret_env_file" ]]; then
-  "$script_dir/apply-openclaw-core-secret.sh" "$secret_env_file"
+if [[ -d "$secret_source_dir" ]]; then
+  "$script_dir/apply-openclaw-core-secret.sh" "$secret_source_dir"
 else
-  echo "skipping secret apply; file not found: $secret_env_file"
+  echo "skipping secret apply; directory not found: $secret_source_dir"
 fi
 
 "$script_dir/bootstrap-openclaw-gitops.sh"
