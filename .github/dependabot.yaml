@@ -4,29 +4,13 @@ updates:
     directory: "/ollama"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "03:00"
-      timezone: "Asia/Tokyo"
     open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
     labels:
-      - "Type: Dependencies"
       - "Type: Maintenance"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "03:30"
-      timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
     labels:
-      - "Type: Dependencies"
-      - "Type: CI"
+      - "Type: Maintenance"
