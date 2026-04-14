@@ -1,12 +1,12 @@
 # homelabs
 
-Kubernetes-first homelab infrastructure for bringing up **OpenClaw core** on single-node k3s inside the existing WSL2 Ubuntu instance, bootstrapped by ArgoCD from this public repository.
+Kubernetes-first homelab infrastructure for bringing up **OpenClaw core + Ollama** on single-node k3s inside the existing WSL2 Ubuntu instance, bootstrapped by ArgoCD from this public repository.
 
 ## Current direction
 
-- **Primary path:** WSL2 Ubuntu -> k3s -> ArgoCD -> `openclaw-core`
-- **Current milestone:** get a simple OpenClaw deployment healthy on k3s with reproducible bootstrap and repo-local validation
-- **Not part of the first rollout:** Redis, SearXNG, Ollama-on-k3s, Discord integration, or cloud-provider routing
+- **Primary path:** WSL2 Ubuntu -> Ansible -> k3s -> ArgoCD -> `openclaw-core`
+- **Current milestone:** get a simple OpenClaw deployment healthy on k3s with in-cluster Ollama and reproducible bootstrap
+- **Not part of the first rollout:** Redis, SearXNG, Discord integration, or cloud-provider routing
 - **Retired path:** Docker Compose is no longer the operating model for this repository
 
 The repository remains public, so runtime secrets, kubeconfig, mutable state, and backups must stay outside Git.
@@ -15,24 +15,20 @@ The repository remains public, so runtime secrets, kubeconfig, mutable state, an
 
 Primary bootstrap and delivery assets:
 
-- `infra/k8s/bootstrap-openclaw-wsl.sh`
-- `infra/k8s/install-k3s.sh`
-- `infra/k8s/install-argocd.sh`
-- `infra/k8s/apply-openclaw-core-secret.sh`
-- `infra/k8s/bootstrap-openclaw-gitops.sh`
+- `ansible/playbooks/wsl-openclaw-bootstrap.yml`
+- `ansible/playbooks/wsl-k3s-gpu.yml`
 - `gitops/argocd/`
 - `k8s/openclaw-core/base/`
 
 Lower-priority assets retained for future evaluation:
 
-- `ollama/`
 - `searxng/`
 
-Those retained directories are not part of the active bootstrap path.
+The retained `ollama/` image assets are no longer the preferred runtime path; the active deployment uses Kubernetes manifests under `k8s/openclaw-core/base/`.
 
 ## Windows host prerequisites
 
-The bootstrap scripts run inside WSL2 Ubuntu.
+The bootstrap automation runs inside WSL2 Ubuntu.
 
 From an elevated PowerShell session:
 
@@ -77,20 +73,53 @@ git clone https://github.com/9renpoto/homelabs.git
 cd homelabs
 ```
 
-Run the bootstrap:
+Run the full bootstrap from Ansible:
 
 ```sh
-sudo KUBECONFIG_USER="${USER}" ./infra/k8s/bootstrap-openclaw-wsl.sh
-kubectl get nodes
-kubectl get pods -A
+brew install pipx
+pipx install --force ansible-core==2.18.7
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+cd ansible
+~/.local/bin/ansible-playbook -K playbooks/wsl-openclaw-bootstrap.yml
+cd ..
 ```
 
-This wrapper:
+Because ArgoCD is pull-based, it can only apply manifests that are already available from the configured Git remote ref. If you change `gitops/` or `k8s/` locally, commit and push those changes before expecting ArgoCD bootstrap to pick them up.
 
-- installs k3s
+The tracked bootstrap manifests point ArgoCD at `main`. Bootstrap reuses an existing ArgoCD install when it is already present instead of forcing ownership transfer on every run.
+
+The main Ansible playbook:
+
+- installs k3s when it is missing
+- installs the NVIDIA container runtime packages idempotently
+- restarts k3s only when package state changes
+- verifies that k3s rendered the `nvidia` runtime and `RuntimeClass`
 - installs ArgoCD
 - applies `openclaw-core-env` when a local secret directory exists
 - bootstraps ArgoCD against this repository
+
+The narrower host-only GPU step remains available when you only want to refresh NVIDIA runtime state:
+
+```sh
+cd ansible
+~/.local/bin/ansible-playbook -K playbooks/wsl-k3s-gpu.yml
+cd ..
+```
+
+## GPU-backed Ollama on k3s
+
+The active path now runs Ollama inside the cluster and points OpenClaw at the in-cluster `ollama` service. The NVIDIA device plugin is managed declaratively from `k8s/nvidia-device-plugin/base` through ArgoCD.
+
+Verify that k3s can schedule GPU workloads:
+
+```sh
+KUBECONFIG="$HOME/.kube/config" kubectl get runtimeclass nvidia
+KUBECONFIG="$HOME/.kube/config" kubectl get nodes -o custom-columns=NAME:.metadata.name,GPU:.status.allocatable.nvidia\\.com/gpu
+KUBECONFIG="$HOME/.kube/config" kubectl -n argocd get applications nvidia-device-plugin openclaw-core
+```
+
+If GPU capacity is still missing, fix that before expecting Ollama to start.
 
 ## Local secret management
 
@@ -121,10 +150,15 @@ After ArgoCD is installed, the one-time bootstrap application points ArgoCD at:
 The expected result is:
 
 - `openclaw-bootstrap` becomes `Synced` and `Healthy`
+- `nvidia-device-plugin` becomes `Synced` and `Healthy`
 - `openclaw-core` becomes `Synced` and `Healthy`
 - namespace `openclaw-system` exists
+- PVC `ollama-data` is bound
 - PVC `openclaw-home` is bound
+- deployment `ollama` completes rollout
 - deployment `openclaw` completes rollout
+
+OpenClaw seeds `ollama/qwen2.5-coder:7b` as the default model and calls Ollama through `http://ollama:11434`.
 
 ## Operator verification
 
@@ -134,7 +168,10 @@ Use these checks in order:
 kubectl -n argocd get applications
 kubectl -n openclaw-system get all
 kubectl -n openclaw-system get pvc
+kubectl get nodes -o custom-columns=NAME:.metadata.name,GPU:.status.allocatable.nvidia\\.com/gpu
+kubectl -n openclaw-system rollout status deployment/ollama
 kubectl -n openclaw-system rollout status deployment/openclaw
+kubectl -n openclaw-system logs deployment/ollama --tail=100
 kubectl -n openclaw-system logs deployment/openclaw --tail=100
 ```
 
@@ -144,8 +181,27 @@ Basic maintenance checks:
 kubectl get nodes
 kubectl -n argocd get applications
 kubectl -n openclaw-system get pods,svc,ingress,pvc
+kubectl -n openclaw-system exec deployment/ollama -- ollama list
 kubectl -n openclaw-system describe deployment openclaw
 ```
+
+## First chat
+
+If `openclaw.json` was already seeded into the PVC before the Ollama model changes, remove it once so the new seed is copied back in on the next start:
+
+```sh
+kubectl -n openclaw-system exec deployment/openclaw -- rm -f /home/node/.openclaw/openclaw.json
+kubectl -n openclaw-system rollout restart deployment/openclaw
+kubectl -n openclaw-system rollout status deployment/openclaw
+```
+
+Then open the UI:
+
+```sh
+kubectl -n openclaw-system port-forward svc/openclaw 3000:3000
+```
+
+Browse to `http://127.0.0.1:3000` and send the first message.
 
 ## Repository validation
 
@@ -154,15 +210,21 @@ Render the tracked Kustomize trees:
 ```sh
 mkdir -p .tmp
 docker run --rm -v "$PWD:/work" -w /work registry.k8s.io/kubectl:v1.31.0 kustomize k8s/openclaw-core/base > .tmp/openclaw-core.rendered.yaml
+docker run --rm -v "$PWD:/work" -w /work registry.k8s.io/kubectl:v1.31.0 kustomize k8s/nvidia-device-plugin/base > .tmp/nvidia-device-plugin.rendered.yaml
 docker run --rm -v "$PWD:/work" -w /work registry.k8s.io/kubectl:v1.31.0 kustomize gitops/argocd > .tmp/argocd-bootstrap.rendered.yaml
 ```
 
 Validate manifests and policies:
 
 ```sh
-docker run --rm -v "$PWD:/work" -w /work ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary -ignore-missing-schemas .tmp/openclaw-core.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml
+docker run --rm -v "$PWD:/work" -w /work ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary -ignore-missing-schemas .tmp/openclaw-core.rendered.yaml .tmp/nvidia-device-plugin.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml
 docker run --rm -v "$PWD:/work" -w /work openpolicyagent/conftest:v0.58.0 test --policy policy/kubernetes .tmp/openclaw-core.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml gitops/argocd/applications/openclaw-bootstrap.yaml
 shellcheck infra/k8s/*.sh
+pipx install --force ansible-core==2.18.7
+cd ansible
+~/.local/bin/ansible-playbook --syntax-check playbooks/wsl-k3s-gpu.yml
+~/.local/bin/ansible-playbook --syntax-check playbooks/wsl-openclaw-bootstrap.yml
+cd ..
 ```
 
 Focused manifest render:
@@ -188,7 +250,7 @@ Keep these outside Git and in restricted storage:
 
 ## Optional retained assets
 
-`ollama/` and `searxng/` remain in the repository because they may be reused later, but they are currently **out of scope for the active bootstrap path** and should not drive documentation or operator guidance.
+`searxng/` remains in the repository because it may be reused later, but it is currently **out of scope for the active bootstrap path** and should not drive documentation or operator guidance.
 
 ## Contributing
 

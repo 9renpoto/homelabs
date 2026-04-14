@@ -6,7 +6,7 @@ Key reminders mirrored here for Copilot sessions:
 
 - The repo is centered on the preferred single-node k3s + ArgoCD deployment path.
 - Even though deployment targets one Windows-hosted homelab machine, prefer production-adjacent technology choices and infrastructure changes that can be validated in-repo.
-- Split IaC by layer: WSL2 for the k3s host, shell scripts now and Ansible later for richer guest configuration, and Kustomize + ArgoCD for cluster delivery.
+- Use Ansible for WSL/k3s bootstrap automation and Kustomize + ArgoCD for cluster delivery.
 - Never commit secrets, tracked `.env` files, Kubernetes `Secret` manifests with real values, VM-local secret files, backups, or snapshots.
 - Runtime secret application is handled outside Git with `infra/k8s/apply-openclaw-core-secret.sh` and a local `/etc/openclaw/openclaw-core-secret/` directory.
 - `ollama/` and `searxng/` remain in-repo as future options, but they are not part of the active bootstrap path.

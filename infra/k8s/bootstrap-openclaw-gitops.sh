@@ -22,14 +22,51 @@ kubectl wait --for=condition=Established --timeout=120s crd/applications.argopro
 kubectl wait --for=condition=Established --timeout=120s crd/appprojects.argoproj.io >/dev/null
 kubectl apply -n "$namespace" -f "$manifest_path"
 
-until kubectl -n "$namespace" get application openclaw-core >/dev/null 2>&1; do
-  if (( SECONDS >= deadline )); then
-    echo "timed out waiting for ArgoCD to create application/openclaw-core" >&2
-    exit 1
-  fi
+wait_for_application() {
+  local app_name="$1"
 
-  sleep 5
-done
+  until kubectl -n "$namespace" get application "$app_name" >/dev/null 2>&1; do
+    if (( SECONDS >= deadline )); then
+      echo "timed out waiting for ArgoCD to create application/$app_name" >&2
+      exit 1
+    fi
+
+    sleep 5
+  done
+}
+
+wait_for_application_health() {
+  local app_name="$1"
+  local sync_status
+  local health_status
+
+  while true; do
+    sync_status="$(kubectl -n "$namespace" get application "$app_name" -o jsonpath='{.status.sync.status}' 2>/dev/null || true)"
+    health_status="$(kubectl -n "$namespace" get application "$app_name" -o jsonpath='{.status.health.status}' 2>/dev/null || true)"
+
+    if [[ "$sync_status" == "Synced" && "$health_status" == "Healthy" ]]; then
+      return 0
+    fi
+
+    if (( SECONDS >= deadline )); then
+      echo "timed out waiting for application/$app_name to become Synced and Healthy (sync=${sync_status:-unknown} health=${health_status:-unknown})" >&2
+      kubectl -n "$namespace" get application "$app_name" -o yaml >&2 || true
+      exit 1
+    fi
+
+    sleep 5
+  done
+}
+
+wait_for_application openclaw-bootstrap
+wait_for_application openclaw-core
+wait_for_application_health openclaw-bootstrap
+wait_for_application_health openclaw-core
+
+if (( SECONDS >= deadline )); then
+  echo "timed out waiting for ArgoCD bootstrap to complete" >&2
+  exit 1
+fi
 
 kubectl -n "$namespace" get applications
 
