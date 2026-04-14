@@ -70,5 +70,6 @@ jobs:
             test \
             --policy policy/kubernetes \
             .tmp/openclaw-core.rendered.yaml \
+            .tmp/nvidia-device-plugin.rendered.yaml \
             .tmp/argocd-bootstrap.rendered.yaml \
             gitops/argocd/applications/openclaw-bootstrap.yaml

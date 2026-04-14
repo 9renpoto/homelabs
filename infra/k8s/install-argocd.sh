@@ -3,6 +3,8 @@ set -euo pipefail
 
 namespace="${ARGOCD_NAMESPACE:-argocd}"
 install_url="${ARGOCD_INSTALL_URL:-https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml}"
+wait_timeout="${WAIT_TIMEOUT_SECONDS:-300}"
+deadline=$((SECONDS + wait_timeout))
 
 if ! command -v kubectl >/dev/null 2>&1; then
   echo "kubectl not found" >&2
@@ -15,7 +17,16 @@ if ! kubectl -n "$namespace" get deployment argocd-server >/dev/null 2>&1; then
   kubectl apply --server-side -n "$namespace" -f "$install_url"
 fi
 
+if ! kubectl -n "$namespace" get deployment argocd-repo-server >/dev/null 2>&1; then
+  kubectl apply --server-side -n "$namespace" -f "$install_url"
+fi
+
 until kubectl -n "$namespace" get deployment argocd-repo-server >/dev/null 2>&1; do
+  if (( SECONDS >= deadline )); then
+    echo "timed out waiting for deployment/argocd-repo-server in namespace $namespace" >&2
+    kubectl -n "$namespace" get deployments >&2 || true
+    exit 1
+  fi
   sleep 5
 done
 
