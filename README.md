@@ -2,12 +2,11 @@
 
 Kubernetes-first homelab infrastructure for bringing up **OpenClaw core + Ollama** on single-node k3s inside the existing WSL2 Ubuntu instance, bootstrapped by ArgoCD from this public repository.
 
-## Current direction
+## Deployment path
 
-- **Primary path:** WSL2 Ubuntu -> Ansible -> k3s -> ArgoCD -> `openclaw-core`
-- **Current milestone:** get a simple OpenClaw deployment healthy on k3s with in-cluster Ollama and reproducible bootstrap
-- **Not part of the first rollout:** Redis, SearXNG, Discord integration, or cloud-provider routing
-- **Retired path:** Docker Compose is no longer the operating model for this repository
+- **Bootstrap:** WSL2 Ubuntu -> Ansible -> k3s -> ArgoCD
+- **Workload:** `openclaw-core` with in-cluster Ollama
+- **Out of scope for the active path:** Redis, SearXNG, Discord integration, and cloud-provider routing
 
 The repository remains public, so runtime secrets, kubeconfig, mutable state, and backups must stay outside Git.
 
@@ -20,11 +19,7 @@ Primary bootstrap and delivery assets:
 - `gitops/argocd/`
 - `k8s/openclaw-core/base/`
 
-Lower-priority assets retained for future evaluation:
-
-- `searxng/`
-
-The retained `ollama/` image assets are no longer the preferred runtime path; the active deployment uses Kubernetes manifests under `k8s/openclaw-core/base/`.
+The active runtime path uses Kubernetes manifests under `k8s/openclaw-core/base/`.
 
 ## Windows host prerequisites
 
@@ -85,9 +80,7 @@ cd ansible
 cd ..
 ```
 
-Because ArgoCD is pull-based, it can only apply manifests that are already available from the configured Git remote ref. If you change `gitops/` or `k8s/` locally, commit and push those changes before expecting ArgoCD bootstrap to pick them up.
-
-The tracked bootstrap manifests point ArgoCD at `main`. Bootstrap reuses an existing ArgoCD install when it is already present instead of forcing ownership transfer on every run.
+ArgoCD is pull-based. It applies manifests from `main`, so changes to `gitops/` and `k8s/` need to be committed and pushed before bootstrap can reconcile them.
 
 The main Ansible playbook:
 
@@ -99,7 +92,7 @@ The main Ansible playbook:
 - applies `openclaw-core-env` when a local secret directory exists
 - bootstraps ArgoCD against this repository
 
-The narrower host-only GPU step remains available when you only want to refresh NVIDIA runtime state:
+The narrower host-only GPU step is available when you only want to refresh NVIDIA runtime state:
 
 ```sh
 cd ansible
@@ -123,7 +116,7 @@ If GPU capacity is still missing, fix that before expecting Ollama to start.
 
 ## Local secret management
 
-This repository no longer uses tracked `.env` files.
+This repository uses external secret files instead of tracked `.env` files.
 
 When runtime secrets are needed, create a local directory where **each file name is the environment variable name** and the file contents are the secret value:
 
@@ -135,9 +128,9 @@ sudoedit /etc/openclaw/openclaw-core-secret/DISCORD_BOT_TOKEN
 kubectl -n openclaw-system get secret openclaw-core-env
 ```
 
-The bootstrap wrapper looks for `/etc/openclaw/openclaw-core-secret` by default.
+The bootstrap playbook looks for `/etc/openclaw/openclaw-core-secret` by default.
 
-The Kubernetes deployment still treats `openclaw-core-env` as optional, so the first bootstrap can succeed before any real secret material is present.
+The Kubernetes deployment treats `openclaw-core-env` as optional, so the first bootstrap succeeds before credentials are finalized.
 
 ## GitOps bootstrap flow
 
@@ -235,7 +228,7 @@ docker run --rm -v "$PWD:/work" -w /work registry.k8s.io/kubectl:v1.31.0 kustomi
 
 ## Backup and restore
 
-Reproducible rebuild is the current priority, but PVC backup helpers are available:
+Reproducible rebuild is the default operating model. PVC backup helpers are available when you explicitly need them:
 
 ```sh
 ./infra/k8s/backup-openclaw-core-pvc.sh ./openclaw-home-backup.tgz
@@ -247,10 +240,6 @@ Keep these outside Git and in restricted storage:
 - local secret files under `/etc/openclaw/`
 - `/etc/rancher/k3s/k3s.yaml`
 - exported backup archives
-
-## Optional retained assets
-
-`searxng/` remains in the repository because it may be reused later, but it is currently **out of scope for the active bootstrap path** and should not drive documentation or operator guidance.
 
 ## Contributing
 
