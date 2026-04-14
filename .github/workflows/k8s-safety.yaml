@@ -38,8 +38,14 @@ jobs:
             -v "$PWD:/work" \
             -w /work \
             registry.k8s.io/kubectl:v1.31.0 \
+            kustomize k8s/nvidia-device-plugin/base > .tmp/nvidia-device-plugin.rendered.yaml
+          docker run --rm \
+            -v "$PWD:/work" \
+            -w /work \
+            registry.k8s.io/kubectl:v1.31.0 \
             kustomize gitops/argocd > .tmp/argocd-bootstrap.rendered.yaml
           test -s .tmp/openclaw-core.rendered.yaml
+          test -s .tmp/nvidia-device-plugin.rendered.yaml
           test -s .tmp/argocd-bootstrap.rendered.yaml
 
       - name: Validate rendered manifests against Kubernetes schemas
@@ -52,6 +58,7 @@ jobs:
             -summary \
             -ignore-missing-schemas \
             .tmp/openclaw-core.rendered.yaml \
+            .tmp/nvidia-device-plugin.rendered.yaml \
             .tmp/argocd-bootstrap.rendered.yaml
 
       - name: Enforce Kubernetes safety policies

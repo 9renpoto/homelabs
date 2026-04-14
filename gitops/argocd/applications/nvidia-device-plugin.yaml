@@ -1,22 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: openclaw-core
+  name: nvidia-device-plugin
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
-  project: openclaw-core
+  project: default
   destination:
     server: https://kubernetes.default.svc
-    namespace: openclaw-system
+    namespace: kube-system
   source:
     repoURL: https://github.com/9renpoto/homelabs.git
     targetRevision: main
-    path: k8s/openclaw-core/base
+    path: k8s/nvidia-device-plugin/base
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=false
