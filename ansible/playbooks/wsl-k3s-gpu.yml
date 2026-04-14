@@ -1,0 +1,7 @@
+---
+- name: Configure NVIDIA runtime for k3s on WSL
+  hosts: wsl
+  become: true
+  gather_facts: true
+  roles:
+    - nvidia_k3s_runtime

@@ -1,0 +1,4 @@
+---
+argocd_namespace: argocd
+argocd_install_url: https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+k3s_kubeconfig_path: /etc/rancher/k3s/k3s.yaml
