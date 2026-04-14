@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "enabledManagers": [
+    "kubernetes"
+  ],
+  "labels": [
+    "Type: Maintenance"
+  ],
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "groupName": "container images",
+      "commitMessageTopic": "container images"
+    }
+  ],
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/k8s/.+\\.ya?ml$/"
+    ]
+  }
+}

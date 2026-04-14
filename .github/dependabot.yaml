@@ -1,12 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: docker
-    directory: "/ollama"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 3
-    labels:
-      - "Type: Maintenance"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
