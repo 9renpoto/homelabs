@@ -58,6 +58,10 @@ spec:
             - openclaw.mjs
             - gateway
             - --allow-unconfigured
+            - --bind
+            - lan
+            - --port
+            - "3000"
           ports:
             - name: http
               containerPort: 3000
@@ -73,10 +77,10 @@ spec:
           resources:
             requests:
               cpu: 250m
-              memory: 512Mi
+              memory: 1Gi
             limits:
               cpu: "1"
-              memory: 1Gi
+              memory: 2Gi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -93,6 +97,8 @@ spec:
           volumeMounts:
             - name: openclaw-home
               mountPath: /home/node/.openclaw
+            - name: openclaw-tmp
+              mountPath: /tmp
       volumes:
         - name: openclaw-home
           persistentVolumeClaim:
@@ -100,3 +106,5 @@ spec:
         - name: openclaw-seed
           configMap:
             name: openclaw-seed
+        - name: openclaw-tmp
+          emptyDir: {}
