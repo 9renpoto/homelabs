@@ -1,21 +1,24 @@
 # Security Policy
 
-## Supported Versions
+## Supported branch
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Security fixes target the active `main` branch.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+This repository is public and contains infrastructure definitions, so do not open a public issue for a suspected secret leak or exploitable configuration problem.
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Use GitHub private vulnerability reporting for this repository when it is available.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+If private reporting is not available, contact the repository owner privately through GitHub instead of posting details in a public issue or discussion.
+
+Include:
+
+- the affected file or workflow
+- the impact you expect
+- the steps required to reproduce the issue
+- any suggested mitigation or containment step
+
+## Secret handling
+
+Never commit real credentials, tracked `.env` files, Kubernetes `Secret` manifests with real values, VM-local secret files, kubeconfig files, or backup archives.

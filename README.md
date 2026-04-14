@@ -18,8 +18,9 @@ Primary bootstrap and delivery assets:
 - `ansible/playbooks/wsl-k3s-gpu.yml`
 - `gitops/argocd/`
 - `k8s/openclaw-core/base/`
+- `infra/k8s/`
 
-The active runtime path uses Kubernetes manifests under `k8s/openclaw-core/base/`.
+`infra/k8s/` contains operator helpers for secret application and optional PVC backup or restore.
 
 ## Windows host prerequisites
 
@@ -132,30 +133,22 @@ The bootstrap playbook looks for `/etc/openclaw/openclaw-core-secret` by default
 
 The Kubernetes deployment treats `openclaw-core-env` as optional, so the first bootstrap succeeds before credentials are finalized.
 
-## GitOps bootstrap flow
+## Expected cluster state
 
-After ArgoCD is installed, the one-time bootstrap application points ArgoCD at:
+After bootstrap converges:
 
-- `gitops/argocd/projects/openclaw-core.yaml`
-- `gitops/argocd/applications/openclaw-core.yaml`
-- `k8s/openclaw-core/base/`
-
-The expected result is:
-
-- `openclaw-bootstrap` becomes `Synced` and `Healthy`
-- `nvidia-device-plugin` becomes `Synced` and `Healthy`
-- `openclaw-core` becomes `Synced` and `Healthy`
+- `openclaw-bootstrap` is `Synced` and `Healthy`
+- `nvidia-device-plugin` is `Synced` and `Healthy`
+- `openclaw-core` is `Synced` and `Healthy`
 - namespace `openclaw-system` exists
-- PVC `ollama-data` is bound
-- PVC `openclaw-home` is bound
-- deployment `ollama` completes rollout
-- deployment `openclaw` completes rollout
+- PVCs `ollama-data` and `openclaw-home` are bound
+- deployments `ollama` and `openclaw` complete rollout
 
 OpenClaw seeds `ollama/qwen2.5-coder:7b` as the default model and calls Ollama through `http://ollama:11434`.
 
 ## Operator verification
 
-Use these checks in order:
+Use these checks:
 
 ```sh
 kubectl -n argocd get applications
@@ -166,16 +159,7 @@ kubectl -n openclaw-system rollout status deployment/ollama
 kubectl -n openclaw-system rollout status deployment/openclaw
 kubectl -n openclaw-system logs deployment/ollama --tail=100
 kubectl -n openclaw-system logs deployment/openclaw --tail=100
-```
-
-Basic maintenance checks:
-
-```sh
-kubectl get nodes
-kubectl -n argocd get applications
-kubectl -n openclaw-system get pods,svc,ingress,pvc
 kubectl -n openclaw-system exec deployment/ollama -- ollama list
-kubectl -n openclaw-system describe deployment openclaw
 ```
 
 ## First chat
@@ -211,7 +195,7 @@ Validate manifests and policies:
 
 ```sh
 docker run --rm -v "$PWD:/work" -w /work ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary -ignore-missing-schemas .tmp/openclaw-core.rendered.yaml .tmp/nvidia-device-plugin.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml
-docker run --rm -v "$PWD:/work" -w /work openpolicyagent/conftest:v0.58.0 test --policy policy/kubernetes .tmp/openclaw-core.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml gitops/argocd/applications/openclaw-bootstrap.yaml
+docker run --rm -v "$PWD:/work" -w /work openpolicyagent/conftest:v0.58.0 test --policy policy/kubernetes .tmp/openclaw-core.rendered.yaml .tmp/nvidia-device-plugin.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml gitops/argocd/applications/openclaw-bootstrap.yaml
 shellcheck infra/k8s/*.sh
 pipx install --force ansible-core==2.18.7
 cd ansible
@@ -228,7 +212,7 @@ docker run --rm -v "$PWD:/work" -w /work registry.k8s.io/kubectl:v1.31.0 kustomi
 
 ## Backup and restore
 
-Reproducible rebuild is the default operating model. PVC backup helpers are available when you explicitly need them:
+Reproducible rebuild is the default operating model. Use the PVC helpers only when you explicitly need to preserve `openclaw-home`:
 
 ```sh
 ./infra/k8s/backup-openclaw-core-pvc.sh ./openclaw-home-backup.tgz
