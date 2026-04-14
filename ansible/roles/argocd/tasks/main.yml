@@ -1,0 +1,116 @@
+---
+- name: Ensure ArgoCD namespace exists
+  ansible.builtin.shell: |
+    kubectl create namespace "{{ argocd_namespace }}" --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  register: argocd_namespace_apply
+  changed_when: "'created' in argocd_namespace_apply.stdout or 'configured' in argocd_namespace_apply.stdout"
+
+- name: Check whether ArgoCD server deployment already exists
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ argocd_namespace }}"
+      - get
+      - deployment
+      - argocd-server
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  register: argocd_server_exists
+  changed_when: false
+  failed_when: argocd_server_exists.rc not in [0, 1]
+
+- name: Apply ArgoCD install manifest when missing
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - --server-side
+      - -n
+      - "{{ argocd_namespace }}"
+      - -f
+      - "{{ argocd_install_url }}"
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  register: argocd_install
+  when: argocd_server_exists.rc != 0
+  changed_when: "'created' in argocd_install.stdout or 'configured' in argocd_install.stdout"
+
+- name: Wait for ArgoCD repo-server deployment to exist
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ argocd_namespace }}"
+      - get
+      - deployment
+      - argocd-repo-server
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  register: argocd_repo_server_exists
+  until: argocd_repo_server_exists.rc == 0
+  retries: 24
+  delay: 5
+  changed_when: false
+
+- name: Patch ArgoCD repo-server copyutil init container to use idempotent symlink creation
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ argocd_namespace }}"
+      - patch
+      - deployment
+      - argocd-repo-server
+      - --type=json
+      - -p
+      - >-
+        [{"op":"replace","path":"/spec/template/spec/initContainers/0/args/0","value":"/bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -sfn /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server"}]
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  register: argocd_repo_server_patch
+  changed_when: "'patched' in argocd_repo_server_patch.stdout"
+
+- name: Wait for ArgoCD server deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ argocd_namespace }}"
+      - rollout
+      - status
+      - deployment/argocd-server
+      - --timeout=300s
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  changed_when: false
+
+- name: Wait for ArgoCD repo-server deployment
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ argocd_namespace }}"
+      - rollout
+      - status
+      - deployment/argocd-repo-server
+      - --timeout=300s
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  changed_when: false
+
+- name: Wait for ArgoCD application controller
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ argocd_namespace }}"
+      - rollout
+      - status
+      - statefulset/argocd-application-controller
+      - --timeout=300s
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  changed_when: false

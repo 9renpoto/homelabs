@@ -1,0 +1,64 @@
+---
+- name: Check whether k3s is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Download k3s install script
+  ansible.builtin.get_url:
+    url: "{{ k3s_install_script_url }}"
+    dest: /tmp/get-k3s.sh
+    mode: "0755"
+  when: not k3s_binary.stat.exists
+
+- name: Install k3s when missing
+  ansible.builtin.command: /tmp/get-k3s.sh
+  environment:
+    INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
+    INSTALL_K3S_EXEC: "{{ k3s_exec }}"
+  when: not k3s_binary.stat.exists
+
+- name: Ensure k3s service is enabled and running
+  ansible.builtin.systemd:
+    name: k3s
+    enabled: true
+    state: started
+
+- name: Wait for k3s API
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - get
+      - nodes
+  register: k3s_nodes
+  until: k3s_nodes.rc == 0
+  retries: 30
+  delay: 2
+  changed_when: false
+
+- name: Look up operator account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ operator_user }}"
+
+- name: Set operator home directory
+  ansible.builtin.set_fact:
+    operator_home_dir: "{{ ansible_facts.getent_passwd[operator_user][4] }}"
+
+- name: Ensure operator kubeconfig directory exists
+  ansible.builtin.file:
+    path: "{{ operator_home_dir }}/.kube"
+    state: directory
+    owner: "{{ operator_user }}"
+    group: "{{ operator_user }}"
+    mode: "0700"
+
+- name: Install user kubeconfig
+  ansible.builtin.copy:
+    src: "{{ k3s_kubeconfig_path }}"
+    dest: "{{ operator_home_dir }}/.kube/config"
+    owner: "{{ operator_user }}"
+    group: "{{ operator_user }}"
+    mode: "0600"
+    remote_src: true

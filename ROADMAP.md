@@ -22,17 +22,11 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 
 ## IaC Technology Selection Direction
 
-### Layer split
-
-- **WSL2 layer:** run k3s directly inside the existing WSL2 Ubuntu instance on Windows.
-- **Guest configuration layer:** manage repeatable in-guest operating-system configuration after first boot.
-- **Cluster application layer:** manage Kubernetes resources delivered into k3s through GitOps.
-
 ### Current recommendation
 
-- **WSL2 layer:** use the existing WSL2 Ubuntu instance. Scripts in `infra/k8s/` are Linux-generic and run in WSL2 without modification.
-- **Guest configuration layer:** keep current shell-based setup for now, but evaluate **Ansible** as the default path when in-guest configuration grows beyond simple bootstrap scripts.
-- **Cluster application layer:** use **Kustomize + ArgoCD** as the default GitOps path.
+- Use the existing WSL2 Ubuntu instance as the k3s host.
+- Use **Ansible** as the default automation path for WSL/k3s bootstrap.
+- Use **Kustomize + ArgoCD** as the default GitOps path.
 
 ## Phase 1 — WSL2 and Cluster Bootstrap (Current)
 
@@ -46,8 +40,8 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 
 ### Deliverables
 
-- Repeatable bootstrap flow using `infra/k8s/bootstrap-openclaw-wsl.sh`.
-- Working bootstrap scripts in `infra/k8s/`.
+- Repeatable bootstrap flow using `ansible/playbooks/wsl-openclaw-bootstrap.yml`.
+- Working Ansible playbooks and roles for WSL/k3s bootstrap.
 - ArgoCD bootstrap from `gitops/argocd/`.
 - Initial `k8s/openclaw-core/base/` deployment healthy on k3s.
 - A repo-local validation path for infrastructure changes such as render checks, policy checks, and script verification.
@@ -68,7 +62,7 @@ This roadmap tracks the current direction of this repository: a greenfield, Kube
 - Expand the feedback loop for infrastructure changes so work can progress with fast repo-local checks.
 - Favor declarative assets and validation steps that resemble CDK-style iteration.
 - Keep bootstrap scripts, GitOps manifests, and safety policies aligned so changes are testable before they reach WSL2.
-- Advance IaC technology selection separately for host setup and in-guest configuration management.
+- Advance IaC technology selection separately for WSL/k3s bootstrap and cluster application delivery.
 
 ### Deliverables
 

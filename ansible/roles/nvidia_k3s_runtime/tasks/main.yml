@@ -1,0 +1,104 @@
+---
+- name: Check WSL NVIDIA shim
+  ansible.builtin.stat:
+    path: /usr/lib/wsl/lib/nvidia-smi
+  register: wsl_nvidia_smi
+
+- name: Check standard nvidia-smi binary
+  ansible.builtin.stat:
+    path: /usr/bin/nvidia-smi
+  register: nvidia_smi_bin
+
+- name: Require a visible NVIDIA GPU
+  ansible.builtin.assert:
+    that:
+      - wsl_nvidia_smi.stat.exists or nvidia_smi_bin.stat.exists
+    fail_msg: "nvidia-smi is not visible on this WSL host, so GPU bootstrap cannot continue."
+
+- name: Expose WSL NVIDIA shim in a standard system path
+  ansible.builtin.file:
+    src: /usr/lib/wsl/lib/nvidia-smi
+    dest: /usr/local/bin/nvidia-smi
+    state: link
+  when:
+    - wsl_nvidia_smi.stat.exists
+    - not nvidia_smi_bin.stat.exists
+
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gpg
+    state: present
+    update_cache: true
+
+- name: Ensure APT keyring directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Download NVIDIA container toolkit key
+  ansible.builtin.get_url:
+    url: https://nvidia.github.io/libnvidia-container/gpgkey
+    dest: /etc/apt/keyrings/nvidia-container-toolkit.asc
+    mode: "0644"
+
+- name: Dearmor NVIDIA container toolkit key
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --dearmor
+      - --yes
+      - --output
+      - /etc/apt/keyrings/nvidia-container-toolkit-keyring.gpg
+      - /etc/apt/keyrings/nvidia-container-toolkit.asc
+  changed_when: false
+
+- name: Configure NVIDIA container toolkit repository
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    mode: "0644"
+    content: |
+      deb [signed-by=/etc/apt/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /
+  register: nvidia_repo
+
+- name: Install NVIDIA container runtime packages
+  ansible.builtin.apt:
+    name:
+      - nvidia-container-toolkit
+      - nvidia-container-runtime
+    state: present
+    update_cache: "{{ nvidia_repo.changed }}"
+  notify: Restart k3s
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for k3s service
+  ansible.builtin.systemd:
+    name: k3s
+  register: k3s_service
+  until: k3s_service.status.ActiveState == "active"
+  retries: 30
+  delay: 2
+  changed_when: false
+
+- name: Verify NVIDIA runtime in generated containerd config
+  ansible.builtin.command:
+    argv:
+      - grep
+      - nvidia
+      - /var/lib/rancher/k3s/agent/etc/containerd/config.toml
+  changed_when: false
+
+- name: Verify k3s RuntimeClass exists
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - get
+      - runtimeclass
+      - nvidia
+  changed_when: false

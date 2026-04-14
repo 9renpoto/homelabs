@@ -4,6 +4,9 @@ namespace: openclaw-system
 resources:
   - namespace.yaml
   - configmap-openclaw-seed.yaml
+  - pvc-ollama-data.yaml
+  - deployment-ollama.yaml
+  - service-ollama.yaml
   - pvc-openclaw-home.yaml
   - deployment-openclaw.yaml
   - service-openclaw.yaml

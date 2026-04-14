@@ -1,0 +1,48 @@
+---
+- name: Find OpenClaw secret files
+  ansible.builtin.find:
+    path: "{{ openclaw_secret_dir_path }}"
+    file_type: file
+    recurse: false
+  register: openclaw_secret_files
+
+- name: Require at least one OpenClaw secret file
+  ansible.builtin.assert:
+    that:
+      - openclaw_secret_files.matched > 0
+    fail_msg: "No secret files found in {{ openclaw_secret_dir_path }}."
+
+- name: Ensure OpenClaw namespace exists
+  ansible.builtin.shell: |
+    kubectl create namespace "{{ openclaw_secret_namespace }}" --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  register: openclaw_namespace_apply
+  changed_when: "'created' in openclaw_namespace_apply.stdout or 'configured' in openclaw_namespace_apply.stdout"
+
+- name: Apply OpenClaw runtime secret
+  ansible.builtin.shell: |
+    kubectl -n "{{ openclaw_secret_namespace }}" create secret generic "{{ openclaw_secret_name }}" \
+    {% for file in openclaw_secret_files.files | sort(attribute='path') %}
+      --from-file="{{ file.path | basename }}={{ file.path }}" \
+    {% endfor %}
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  register: openclaw_secret_apply
+  changed_when: "'created' in openclaw_secret_apply.stdout or 'configured' in openclaw_secret_apply.stdout"
+
+- name: Label OpenClaw runtime secret
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ openclaw_secret_namespace }}"
+      - label
+      - secret
+      - "{{ openclaw_secret_name }}"
+      - app.kubernetes.io/part-of=openclaw
+      - --overwrite
+  environment:
+    KUBECONFIG: "{{ k3s_kubeconfig_path }}"
+  changed_when: false

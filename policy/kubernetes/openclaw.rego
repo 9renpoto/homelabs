@@ -23,6 +23,7 @@ deny[msg] {
   spec := pod_spec(input)
   volume := object.get(spec, "volumes", [])[_]
   volume.hostPath
+  not allowed_hostpath_volume(input, volume)
   msg := sprintf("%s/%s must not use hostPath volume %s", [input.kind, input.metadata.name, volume.name])
 }
 
@@ -37,6 +38,7 @@ deny[msg] {
   spec := pod_spec(input)
   container := all_containers(spec)[_]
   not object.get(object.get(container, "securityContext", {}), "runAsNonRoot", false)
+  not allowed_missing_run_as_non_root(input, container)
   msg := sprintf("%s/%s container %s must set runAsNonRoot: true", [input.kind, input.metadata.name, container.name])
 }
 
@@ -143,6 +145,24 @@ destination_allowed(destinations, namespace) {
   destination := destinations[_]
   destination.namespace == namespace
   destination.server == "https://kubernetes.default.svc"
+}
+
+allowed_hostpath_volume(obj, volume) {
+  nvidia_device_plugin(obj)
+  volume.name == "kubelet-device-plugins-dir"
+  volume.hostPath.path == "/var/lib/kubelet/device-plugins"
+  volume.hostPath.type == "Directory"
+}
+
+allowed_missing_run_as_non_root(obj, container) {
+  nvidia_device_plugin(obj)
+  container.name == "nvidia-device-plugin-ctr"
+}
+
+nvidia_device_plugin(obj) {
+  obj.kind == "DaemonSet"
+  obj.metadata.namespace == "kube-system"
+  obj.metadata.name == "nvidia-device-plugin-daemonset"
 }
 
 workload_kind(kind) {

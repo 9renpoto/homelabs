@@ -4,7 +4,7 @@ This file is the primary source of truth for AI assistant guidance in this repos
 
 ## Build, test, and lint commands
 
-This repository is now centered on the **WSL2 k3s + ArgoCD + OpenClaw core** path.
+This repository is now centered on the **WSL2 + Ansible + k3s + NVIDIA GPU + ArgoCD + OpenClaw core** path.
 
 ### Kubernetes / GitOps validation
 
@@ -42,12 +42,13 @@ There is no conventional unit-test suite in this repo; validation is centered on
 
 ## High-level architecture
 
-- The preferred deployment path is **single-node k3s inside the existing WSL2 Ubuntu instance**, bootstrapped with ArgoCD and reconciled from this public repo.
-- The **k3s/GitOps flow** starts in `infra/k8s/`:
-  - `bootstrap-openclaw-wsl.sh` orchestrates `install-k3s.sh`, `install-argocd.sh`, optional secret application, and `bootstrap-openclaw-gitops.sh`.
+- The preferred deployment path is **single-node k3s inside the existing WSL2 Ubuntu instance**, with WSL/k3s bootstrap managed by Ansible and cluster delivery bootstrapped with ArgoCD from this public repo.
+- The **k3s/GitOps flow** starts in `ansible/` and `gitops/`:
+  - `ansible/playbooks/wsl-openclaw-bootstrap.yml` is the primary bootstrap entrypoint; it installs k3s, configures NVIDIA runtime support, installs ArgoCD, applies the optional OpenClaw secret, and bootstraps GitOps.
+  - `ansible/playbooks/wsl-k3s-gpu.yml` remains available as a narrower NVIDIA runtime playbook.
   - `gitops/argocd/applications/openclaw-bootstrap.yaml` bootstraps ArgoCD against `gitops/argocd/`, which then creates the `openclaw-core` AppProject/Application and syncs `k8s/openclaw-core/base`.
-- The **first Kubernetes milestone deploys only OpenClaw core**. `k8s/openclaw-core/base/deployment-openclaw.yaml` mounts a PVC at `/home/node/.openclaw`, seeds `openclaw.json` from a ConfigMap on first boot, and reads runtime env from the optional `openclaw-core-env` secret.
-- `ollama/` and `searxng/` remain in the repo as lower-priority future options, but they are not part of the active bootstrap workflow.
+- The **first Kubernetes milestone deploys OpenClaw core with in-cluster Ollama**. `k8s/openclaw-core/base/deployment-openclaw.yaml` mounts a PVC at `/home/node/.openclaw`, seeds `openclaw.json` from a ConfigMap on first boot, and reads runtime env from the optional `openclaw-core-env` secret. `k8s/openclaw-core/base/deployment-ollama.yaml` runs Ollama with `runtimeClassName: nvidia`, persistent model storage, and a pre-pulled local model. `k8s/nvidia-device-plugin/base/` is reconciled separately through ArgoCD.
+- `searxng/` remains in the repo as a lower-priority future option, but it is not part of the active bootstrap workflow.
 
 ## Key conventions
 
@@ -55,7 +56,7 @@ There is no conventional unit-test suite in this repo; validation is centered on
 - Docker Compose is **not** the active deployment model anymore. Do not reintroduce Compose-first docs or workflows.
 - The primary local secret flow is **outside Git** under `/etc/openclaw/openclaw-core-secret/`, with one file per environment variable name.
 - The Kubernetes secret for runtime env is intentionally **optional** so the first GitOps rollout can succeed before credentials are finalized.
-- The current milestone is intentionally **small**: OpenClaw core first. Redis, SearXNG, Ollama-on-k3s, and Discord integration are follow-on work.
+- The current milestone is intentionally **small**: OpenClaw core plus the minimum Ollama path needed for the first chat. Redis, SearXNG, and Discord integration are follow-on work.
 - Although the deployment target is a single Windows-hosted homelab, prefer **production-adjacent technology choices** and infrastructure changes that can be **rendered, validated, and regression-checked in-repo**.
-- Split IaC choices by layer: **WSL2** as the current k3s host, **Ansible** as the likely next step for richer in-guest config management, and **Kustomize + ArgoCD** for cluster application delivery.
+- Use **Ansible** for WSL/k3s bootstrap automation and **Kustomize + ArgoCD** for cluster application delivery.
 - Use **Japanese for chat with the user**, but keep persistent engineering artifacts such as **commit messages, pull request text, and code review comments in English**.

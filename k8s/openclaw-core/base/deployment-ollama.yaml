@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  labels:
+    app.kubernetes.io/name: ollama
+    app.kubernetes.io/part-of: openclaw
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ollama
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ollama
+        app.kubernetes.io/part-of: openclaw
+    spec:
+      runtimeClassName: nvidia
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: pull-ollama-model
+          image: ollama/ollama:0.18.2
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              set -eu
+              ollama serve &
+              serve_pid=$!
+              cleanup() {
+                kill "$serve_pid" 2>/dev/null || true
+                wait "$serve_pid" 2>/dev/null || true
+              }
+              trap cleanup EXIT
+
+              ready=0
+              for _ in $(seq 1 60); do
+                if OLLAMA_HOST=http://127.0.0.1:11434 ollama list >/dev/null 2>&1; then
+                  ready=1
+                  break
+                fi
+                sleep 1
+              done
+
+              if [ "$ready" -ne 1 ]; then
+                echo "ollama did not become ready in time" >&2
+                exit 1
+              fi
+
+              OLLAMA_HOST=http://127.0.0.1:11434 ollama pull "$OLLAMA_MODEL"
+          env:
+            - name: HOME
+              value: /home/ollama
+            - name: OLLAMA_MODEL
+              value: qwen2.5-coder:7b
+            - name: OLLAMA_MODELS
+              value: /home/ollama/.ollama/models
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /home/ollama/.ollama
+            - name: ollama-tmp
+              mountPath: /tmp
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.18.2
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - exec ollama serve
+          ports:
+            - name: http
+              containerPort: 11434
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 500m
+              memory: 4Gi
+            limits:
+              cpu: "4"
+              memory: 10Gi
+              nvidia.com/gpu: 1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          env:
+            - name: HOME
+              value: /home/ollama
+            - name: OLLAMA_HOST
+              value: 0.0.0.0:11434
+            - name: OLLAMA_MODELS
+              value: /home/ollama/.ollama/models
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /home/ollama/.ollama
+            - name: ollama-tmp
+              mountPath: /tmp
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-data
+        - name: ollama-tmp
+          emptyDir: {}
