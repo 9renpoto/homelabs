@@ -1,0 +1,29 @@
+---
+profile: production
+
+warn_list:
+  - experimental
+  - risky-shell-pipe
+  - no-handler
+  - yaml
+
+skip_list:
+  - fqcn-builtins
+  - name[missing]
+  - var-naming
+  - package-latest
+  - command-instead-of-shell
+
+enable_list:
+  - risky-file-permissions
+  - no-log-password
+  - no-world-writable
+  - no-changed-when
+  - no-jinja-when
+  - yaml[line-length]
+
+exclude_paths:
+  - .github/
+  - k8s/
+  - gitops/
+  - infra/k8s/
