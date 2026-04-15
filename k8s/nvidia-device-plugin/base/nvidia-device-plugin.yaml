@@ -14,6 +14,9 @@ spec:
       labels:
         name: nvidia-device-plugin-ds
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       runtimeClassName: nvidia
       tolerations:
         - key: nvidia.com/gpu
