@@ -92,12 +92,6 @@ deny[msg] {
   msg := sprintf("%s/%s must not use latest tag in container %s", [input.kind, input.metadata.name, container.name])
 }
 
-is_latest_tag(image) {
-  endswith(image_ref_without_digest(image), ":latest")
-} else {
-  not has_image_tag(image)
-}
-
 image_ref_without_digest(image) = ref {
   ref := split(image, "@")[0]
 }
@@ -111,6 +105,12 @@ image_name_segment(image) = segment {
 has_image_tag(image) {
   segment := image_name_segment(image)
   contains(segment, ":")
+}
+
+is_latest_tag(image) {
+  endswith(image_ref_without_digest(image), ":latest")
+} else {
+  not has_image_tag(image)
 }
 
 # 6. Pod Security Standards: Restricted profile requirements
@@ -191,7 +191,7 @@ is_valid_profile_type(type) {
   type == "Localhost"
 }
 
-# readOnlyRootFilesystem: true (enforced by this policy)
+# readOnlyRootFilesystem: true (Enforced for restricted)
 deny[msg] {
   spec := pod_spec(input)
   container := all_containers(spec)[_]
