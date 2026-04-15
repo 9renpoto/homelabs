@@ -1,14 +1,29 @@
 ---
-profile: null # min, basic, moderate,safety, shared, production
+profile: production
 
-# List of ignore rules
+warn_list:
+  - experimental
+  - risky-shell-pipe
+  - no-handler
+  - yaml
+
 skip_list:
-  - var-naming[no-role-prefix]
+  - fqcn-builtins
+  - name[missing]
+  - var-naming
+  - package-latest
+  - command-instead-of-shell
+
+enable_list:
+  - risky-file-permissions
+  - no-log-password
+  - no-world-writable
+  - no-changed-when
+  - no-jinja-when
+  - yaml[line-length]
 
 exclude_paths:
-  - .git/
   - .github/
-
-# use_default_rules: true
-# offline: true
-# verbosity: 1
+  - k8s/
+  - gitops/
+  - infra/k8s/
