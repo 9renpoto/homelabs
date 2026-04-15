@@ -45,6 +45,11 @@ variable "disk_size_mb" {
   default = 131072
 }
 
+variable "network_adapter_type" {
+  type    = string
+  default = "vmxnet3"
+}
+
 variable "ssh_username" {
   type    = string
   default = "ubuntu"
@@ -64,6 +69,7 @@ source "vmware-iso" "ubuntu" {
   cpus                 = var.cpus
   memory               = var.memory
   disk_size            = var.disk_size_mb
+  network_adapter_type = var.network_adapter_type
   headless             = var.headless
   output_directory     = var.output_directory
   format               = "vmx"
