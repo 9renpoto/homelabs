@@ -1,0 +1,14 @@
+---
+profile: null # min, basic, moderate,safety, shared, production
+
+# List of ignore rules
+skip_list:
+  - var-naming[no-role-prefix]
+
+exclude_paths:
+  - .git/
+  - .github/
+
+# use_default_rules: true
+# offline: true
+# verbosity: 1

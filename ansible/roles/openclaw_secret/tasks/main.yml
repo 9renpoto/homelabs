@@ -14,7 +14,10 @@
 
 - name: Ensure OpenClaw namespace exists
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl create namespace "{{ openclaw_secret_namespace }}" --dry-run=client -o yaml | kubectl apply -f -
+  args:
+    executable: /bin/bash
   environment:
     KUBECONFIG: "{{ k3s_kubeconfig_path }}"
   register: openclaw_namespace_apply
@@ -22,11 +25,14 @@
 
 - name: Apply OpenClaw runtime secret
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl -n "{{ openclaw_secret_namespace }}" create secret generic "{{ openclaw_secret_name }}" \
     {% for file in openclaw_secret_files.files | sort(attribute='path') %}
       --from-file="{{ file.path | basename }}={{ file.path }}" \
     {% endfor %}
       --dry-run=client -o yaml | kubectl apply -f -
+  args:
+    executable: /bin/bash
   environment:
     KUBECONFIG: "{{ k3s_kubeconfig_path }}"
   register: openclaw_secret_apply

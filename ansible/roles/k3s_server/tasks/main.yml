@@ -17,6 +17,7 @@
     INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
     INSTALL_K3S_EXEC: "{{ k3s_exec }}"
   when: not k3s_binary.stat.exists
+  changed_when: true
 
 - name: Ensure k3s service is enabled and running
   ansible.builtin.systemd:

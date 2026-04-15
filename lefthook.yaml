@@ -4,3 +4,6 @@ pre-commit:
       run: gitleaks git --pre-commit --staged --no-banner .
     typos:
       run: typos
+    ansible-lint:
+      glob: "ansible/**/*.{yml,yaml}"
+      run: ansible-lint --project-dir ansible/ {staged_files}
