@@ -1,0 +1,55 @@
+name: Packer safety
+
+on:
+  pull_request:
+    paths:
+      - "infra/packer/**"
+      - ".github/workflows/packer-safety.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/packer/**"
+      - ".github/workflows/packer-safety.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    env:
+      PACKER_VERSION: 1.12.0
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install prerequisites
+        run: sudo apt-get update && sudo apt-get install --yes curl unzip
+      - name: Install Packer
+        run: |
+          curl -fsSL -o /tmp/packer.zip "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip"
+          unzip -o /tmp/packer.zip -d /tmp/packer-bin
+          sudo install -m 0755 /tmp/packer-bin/packer /usr/local/bin/packer
+      - name: Prepare CI inputs for Packer validate
+        run: |
+          mkdir -p .tmp
+          ssh-keygen -q -t ed25519 -N "" -f .tmp/packer-ci-key
+          export PACKER_SSH_PUBLIC_KEY="$(cat .tmp/packer-ci-key.pub)"
+          ./infra/packer/render-user-data.sh
+          cat > .tmp/packer-ci.pkrvars.hcl <<'EOF'
+          vm_name              = "ci-openclaw-k3s"
+          iso_url              = "https://example.invalid/ubuntu.iso"
+          iso_checksum         = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          output_directory     = "output-ci-openclaw-k3s"
+          cpus                 = 4
+          memory               = 8192
+          disk_size_mb         = 65536
+          ssh_username         = "ubuntu"
+          ssh_private_key_file = ".tmp/packer-ci-key"
+          EOF
+      - name: Check Packer formatting
+        run: packer fmt -check infra/packer
+      - name: Validate Packer template
+        run: |
+          packer init infra/packer/ubuntu-openclaw.pkr.hcl
+          packer validate -var-file=.tmp/packer-ci.pkrvars.hcl infra/packer/ubuntu-openclaw.pkr.hcl

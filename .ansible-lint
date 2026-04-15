@@ -11,6 +11,7 @@ skip_list:
   - fqcn-builtins
   - name[missing]
   - var-naming
+  - var-naming[no-role-prefix]
   - package-latest
   - command-instead-of-shell
 

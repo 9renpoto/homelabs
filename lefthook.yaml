@@ -6,7 +6,7 @@ pre-commit:
       run: typos
     ansible-lint:
       glob: "ansible/**/*.{yml,yaml}"
-      run: ansible-lint --project-dir ansible/ {staged_files}
+      run: LANG=C.UTF-8 LC_ALL=C.UTF-8 ANSIBLE_CONFIG=ansible/ansible.cfg ansible-lint -c .ansible-lint --project-dir ansible/ {staged_files}
     conftest:
       glob: "{k8s,gitops}/**/*.yaml"
       run: conftest test --policy policy/kubernetes {staged_files}

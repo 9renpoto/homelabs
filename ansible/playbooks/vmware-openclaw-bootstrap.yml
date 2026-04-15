@@ -1,10 +1,10 @@
 ---
-- name: Bootstrap OpenClaw on WSL k3s
-  hosts: wsl
+- name: Bootstrap OpenClaw on VMware guest k3s
+  hosts: k3s_hosts
   become: true
   gather_facts: true
   vars:
-    operator_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+    operator_user: "{{ ansible_user | default(lookup('ansible.builtin.env', 'USER')) }}"
     secret_source_dir: /etc/openclaw/openclaw-core-secret
     repo_root: "{{ playbook_dir | dirname | dirname }}"
   roles:

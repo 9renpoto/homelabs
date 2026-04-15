@@ -29,8 +29,8 @@ jobs:
       - name: Syntax-check Ansible playbooks
         working-directory: ansible
         run: |
-          ansible-playbook --syntax-check playbooks/wsl-k3s-gpu.yml
-          ansible-playbook --syntax-check playbooks/wsl-openclaw-bootstrap.yml
+          ansible-playbook --syntax-check playbooks/vmware-k3s-gpu.yml
+          ansible-playbook --syntax-check playbooks/vmware-openclaw-bootstrap.yml
 
   lint:
     runs-on: ubuntu-latest

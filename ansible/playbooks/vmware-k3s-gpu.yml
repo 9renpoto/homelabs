@@ -1,0 +1,7 @@
+---
+- name: Configure NVIDIA runtime for k3s on VMware guest
+  hosts: k3s_hosts
+  become: true
+  gather_facts: true
+  roles:
+    - nvidia_k3s_runtime

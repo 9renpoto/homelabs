@@ -1,8 +1,9 @@
 ---
-- name: Check WSL NVIDIA shim
+- name: Check optional NVIDIA shim source
   ansible.builtin.stat:
-    path: /usr/lib/wsl/lib/nvidia-smi
-  register: wsl_nvidia_smi
+    path: "{{ nvidia_smi_shim_source_path }}"
+  register: nvidia_smi_shim
+  when: nvidia_smi_shim_source_path | length > 0
 
 - name: Check standard nvidia-smi binary
   ansible.builtin.stat:
@@ -12,16 +13,19 @@
 - name: Require a visible NVIDIA GPU
   ansible.builtin.assert:
     that:
-      - wsl_nvidia_smi.stat.exists or nvidia_smi_bin.stat.exists
-    fail_msg: "nvidia-smi is not visible on this WSL host, so GPU bootstrap cannot continue."
+      - nvidia_smi_bin.stat.exists or (nvidia_smi_shim.stat.exists | default(false))
+    fail_msg: >-
+      nvidia-smi is not visible on this host, so GPU bootstrap cannot continue.
+      Ensure the VMware guest exposes the GPU and NVIDIA drivers are installed before running this playbook.
 
-- name: Expose WSL NVIDIA shim in a standard system path
+- name: Expose optional NVIDIA shim in a standard system path
   ansible.builtin.file:
-    src: /usr/lib/wsl/lib/nvidia-smi
-    dest: /usr/local/bin/nvidia-smi
+    src: "{{ nvidia_smi_shim_source_path }}"
+    dest: "{{ nvidia_smi_shim_dest_path }}"
     state: link
   when:
-    - wsl_nvidia_smi.stat.exists
+    - nvidia_smi_shim_source_path | length > 0
+    - nvidia_smi_shim.stat.exists | default(false)
     - not nvidia_smi_bin.stat.exists
 
 - name: Install prerequisites
