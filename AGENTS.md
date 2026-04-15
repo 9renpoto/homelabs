@@ -48,6 +48,7 @@ There is no conventional unit-test suite in this repo; validation is centered on
 
 - The preferred deployment path is **single-node k3s inside an Ubuntu guest on VMware Workstation Pro**, with the guest image built by Packer and guest bootstrap managed by Ansible while cluster delivery remains bootstrapped with ArgoCD from this public repo.
 - The **k3s/GitOps flow** starts in `ansible/` and `gitops/`:
+  - Tools are managed by Homebrew via `Brewfile` in the repository root. Run `brew bundle` to install dependencies.
   - `infra/packer/ubuntu-openclaw.pkr.hcl` is the VMware guest-image entrypoint.
   - `ansible/playbooks/vmware-openclaw-bootstrap.yml` is the primary bootstrap entrypoint; it installs k3s, configures NVIDIA runtime support, installs ArgoCD, applies the optional OpenClaw secret, and bootstraps GitOps.
   - `ansible/playbooks/vmware-k3s-gpu.yml` remains available as a narrower NVIDIA runtime playbook.

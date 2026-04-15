@@ -64,12 +64,11 @@ The tracked Packer scaffold intentionally keeps generated `infra/packer/http/use
 After the VMware guest is running and reachable by SSH, update `ansible/inventory/vmware.ini` with the guest IP address and operator username, then run the full bootstrap:
 
 ```sh
-brew install pipx
-pipx install --force ansible-core==2.18.7
+brew bundle
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 cd ansible
-~/.local/bin/ansible-playbook -K playbooks/vmware-openclaw-bootstrap.yml
+ansible-playbook -K playbooks/vmware-openclaw-bootstrap.yml
 cd ..
 ```
 
@@ -89,7 +88,7 @@ The narrower host-only GPU step is available when you only want to refresh NVIDI
 
 ```sh
 cd ansible
-~/.local/bin/ansible-playbook -K playbooks/vmware-k3s-gpu.yml
+ansible-playbook -K playbooks/vmware-k3s-gpu.yml
 cd ..
 ```
 
@@ -181,8 +180,8 @@ shellcheck infra/k8s/*.sh
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 cd ansible
-~/.local/bin/ansible-playbook --syntax-check playbooks/vmware-k3s-gpu.yml
-~/.local/bin/ansible-playbook --syntax-check playbooks/vmware-openclaw-bootstrap.yml
+ansible-playbook --syntax-check playbooks/vmware-k3s-gpu.yml
+ansible-playbook --syntax-check playbooks/vmware-openclaw-bootstrap.yml
 cd ..
 ```
 
@@ -210,10 +209,10 @@ Validate manifests and policies:
 docker run --rm -v "$PWD:/work" -w /work ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary -ignore-missing-schemas .tmp/openclaw-core.rendered.yaml .tmp/nvidia-device-plugin.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml
 docker run --rm -v "$PWD:/work" -w /work openpolicyagent/conftest:v0.58.0 test --policy policy/kubernetes .tmp/openclaw-core.rendered.yaml .tmp/nvidia-device-plugin.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml gitops/argocd/applications/openclaw-bootstrap.yaml
 shellcheck infra/k8s/*.sh
-pipx install --force ansible-core==2.18.7
+brew bundle
 cd ansible
-~/.local/bin/ansible-playbook --syntax-check playbooks/vmware-k3s-gpu.yml
-~/.local/bin/ansible-playbook --syntax-check playbooks/vmware-openclaw-bootstrap.yml
+ansible-playbook --syntax-check playbooks/vmware-k3s-gpu.yml
+ansible-playbook --syntax-check playbooks/vmware-openclaw-bootstrap.yml
 cd ..
 ```
 
