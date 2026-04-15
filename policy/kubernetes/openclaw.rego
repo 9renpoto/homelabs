@@ -34,7 +34,7 @@ pod_spec(obj) = spec {
 all_containers(spec) := containers {
   containers := array.concat(
     object.get(spec, "initContainers", []),
-    object.get(spec, "containers", []),
+    object.get(spec, "containers", [])
   )
 }
 
@@ -50,7 +50,7 @@ deny[msg] {
 deny[msg] {
   input.kind == "Namespace"
   input.metadata.name == "openclaw-system"
-  input.metadata.labels["pod-security.kubernetes.io/enforce"] != "restricted"
+  object.get(input.metadata.labels, "pod-security.kubernetes.io/enforce", "") != "restricted"
   msg := "Namespace openclaw-system must enforce pod-security restricted"
 }
 
@@ -93,9 +93,24 @@ deny[msg] {
 }
 
 is_latest_tag(image) {
-  endswith(image, ":latest")
+  endswith(image_ref_without_digest(image), ":latest")
 } else {
-  not contains(image, ":")
+  not has_image_tag(image)
+}
+
+image_ref_without_digest(image) = ref {
+  ref := split(image, "@")[0]
+}
+
+image_name_segment(image) = segment {
+  ref := image_ref_without_digest(image)
+  parts := split(ref, "/")
+  segment := parts[count(parts)-1]
+}
+
+has_image_tag(image) {
+  segment := image_name_segment(image)
+  contains(segment, ":")
 }
 
 # 6. Pod Security Standards: Restricted profile requirements
@@ -176,7 +191,7 @@ is_valid_profile_type(type) {
   type == "Localhost"
 }
 
-# readOnlyRootFilesystem: true (Recommended for restricted)
+# readOnlyRootFilesystem: true (enforced by this policy)
 deny[msg] {
   spec := pod_spec(input)
   container := all_containers(spec)[_]
