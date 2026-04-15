@@ -34,6 +34,19 @@ spec:
               mkdir -p /work
               if [ ! -f /work/openclaw.json ]; then
                 cp /seed/openclaw.json /work/openclaw.json
+              elif ! grep -q '"mode"[[:space:]]*:[[:space:]]*"local"' /work/openclaw.json; then
+                tmp_file="$(mktemp /work/openclaw.json.XXXXXX)"
+                awk '
+                  NR == 1 {
+                    print
+                    print "  \"gateway\": {"
+                    print "    \"mode\": \"local\""
+                    print "  },"
+                    next
+                  }
+                  { print }
+                ' /work/openclaw.json > "$tmp_file"
+                mv "$tmp_file" /work/openclaw.json
               fi
           securityContext:
             allowPrivilegeEscalation: false

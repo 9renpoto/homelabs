@@ -8,6 +8,9 @@ metadata:
 data:
   openclaw.json: |
     {
+      "gateway": {
+        "mode": "local"
+      },
       "models": {
         "providers": {
           "ollama": {
