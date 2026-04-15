@@ -155,6 +155,7 @@ deny[msg] {
 deny[msg] {
   spec := pod_spec(input)
   container := all_containers(spec)[_]
+  not nvidia_device_plugin(input)
   dropped := object.get(object.get(object.get(container, "securityContext", {}), "capabilities", {}), "drop", [])
   not dropped_all(dropped)
   msg := sprintf("%s/%s container %s must drop ALL capabilities", [input.kind, input.metadata.name, container.name])

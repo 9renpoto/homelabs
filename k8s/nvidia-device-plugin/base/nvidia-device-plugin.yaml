@@ -32,6 +32,7 @@ spec:
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
           volumeMounts:
             - name: kubelet-device-plugins-dir
               mountPath: /var/lib/kubelet/device-plugins
