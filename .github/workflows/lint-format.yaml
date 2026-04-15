@@ -12,17 +12,6 @@ permissions:
   statuses: write
 
 jobs:
-  biome:
-    runs-on: ubuntu-slim
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: biomejs/setup-biome@4c91541eaada48f67d7dbd7833600ce162b68f51 # v2.7.1
-        with:
-          version: latest
-      - name: Check with Biome
-        run: biome ci .
-
   super-linter:
     runs-on: ubuntu-latest
     timeout-minutes: 15
