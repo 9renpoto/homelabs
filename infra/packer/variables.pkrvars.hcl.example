@@ -1,0 +1,9 @@
+vm_name              = "openclaw-k3s"
+iso_url              = "https://releases.ubuntu.com/24.04.2/ubuntu-24.04.2-live-server-amd64.iso"
+iso_checksum         = "sha256:REPLACE_WITH_UBUNTU_ISO_CHECKSUM"
+output_directory     = "output-openclaw-k3s"
+cpus                 = 8
+memory               = 32768
+disk_size_mb         = 131072
+ssh_username         = "ubuntu"
+ssh_private_key_file = "/absolute/path/to/id_ed25519"

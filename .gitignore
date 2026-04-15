@@ -10,3 +10,5 @@
 # Packer build artifacts and generated files
 infra/packer/output-*/
 infra/packer/http/user-data
+infra/packer/*.pkrvars.hcl
+!infra/packer/*.pkrvars.hcl.example

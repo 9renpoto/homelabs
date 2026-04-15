@@ -4,14 +4,15 @@ This roadmap reflects the active direction of the repository today.
 
 ## Current direction
 
-- Run OpenClaw core on single-node k3s inside the existing WSL2 Ubuntu instance.
-- Bootstrap the host with Ansible.
+- Run OpenClaw core on single-node k3s inside an Ubuntu guest on VMware Workstation Pro.
+- Build the guest image with Packer and bootstrap the host with Ansible.
 - Deliver cluster resources with Kustomize and ArgoCD.
 - Keep the repository public and keep secrets, kubeconfig, backups, and mutable state outside Git.
 
 ## Current scope
 
-- `ansible/playbooks/wsl-openclaw-bootstrap.yml` is the primary bootstrap entrypoint.
+- `infra/packer/ubuntu-openclaw.pkr.hcl` is the guest-image entrypoint.
+- `ansible/playbooks/vmware-openclaw-bootstrap.yml` is the primary bootstrap entrypoint.
 - `gitops/argocd/` bootstraps ArgoCD from this repository.
 - `k8s/openclaw-core/base/` deploys OpenClaw core and in-cluster Ollama.
 - `k8s/nvidia-device-plugin/base/` provides GPU device discovery for Ollama.
@@ -25,11 +26,11 @@ This roadmap reflects the active direction of the repository today.
 
 ## Current priorities
 
-1. Keep the WSL2 -> k3s -> ArgoCD -> OpenClaw bootstrap path repeatable.
-2. Keep the local secret-directory workflow for `openclaw-core-env` stable.
-3. Keep render, schema, policy, and script checks aligned with the live bootstrap path.
-4. Keep OpenClaw core and Ollama healthy on the GPU-backed k3s node.
-5. Add optional components only when they help the active Kubernetes path.
+1. Keep the VMware Workstation Pro -> Packer -> Ansible -> k3s -> ArgoCD bootstrap path repeatable.
+2. Validate NVIDIA visibility inside the Ubuntu guest before treating the VMware path as ready.
+3. Keep the local secret-directory workflow for `openclaw-core-env` stable.
+4. Keep render, schema, policy, and script checks aligned with the live bootstrap path.
+5. Keep OpenClaw core and Ollama healthy on the GPU-backed k3s node.
 
 ## Deferred items
 

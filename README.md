@@ -1,10 +1,10 @@
 # homelabs
 
-Kubernetes-first homelab infrastructure for bringing up **OpenClaw core + Ollama** on single-node k3s inside the existing WSL2 Ubuntu instance, bootstrapped by ArgoCD from this public repository.
+Kubernetes-first homelab infrastructure for bringing up **OpenClaw core + Ollama** on single-node k3s inside an Ubuntu VM on **VMware Workstation Pro**, with the guest image built by Packer and the cluster bootstrapped by Ansible and ArgoCD from this public repository.
 
 ## Deployment path
 
-- **Bootstrap:** WSL2 Ubuntu -> Ansible -> k3s -> ArgoCD
+- **Bootstrap:** Windows host -> VMware Workstation Pro -> Packer-built Ubuntu VM -> Ansible -> k3s -> ArgoCD
 - **Workload:** `openclaw-core` with in-cluster Ollama
 - **Out of scope for the active path:** Redis, SearXNG, Discord integration, and cloud-provider routing
 
@@ -14,8 +14,9 @@ The repository remains public, so runtime secrets, kubeconfig, mutable state, an
 
 Primary bootstrap and delivery assets:
 
-- `ansible/playbooks/wsl-openclaw-bootstrap.yml`
-- `ansible/playbooks/wsl-k3s-gpu.yml`
+- `infra/packer/`
+- `ansible/playbooks/vmware-openclaw-bootstrap.yml`
+- `ansible/playbooks/vmware-k3s-gpu.yml`
 - `gitops/argocd/`
 - `k8s/openclaw-core/base/`
 - `infra/k8s/`
@@ -24,52 +25,43 @@ Primary bootstrap and delivery assets:
 
 ## Windows host prerequisites
 
-The bootstrap automation runs inside WSL2 Ubuntu.
+Install and prepare the following on the Windows host:
 
-From an elevated PowerShell session:
+- VMware Workstation Pro
+- an Ubuntu Server ISO for the guest image build
+- a reachable SSH public key for the guest bootstrap account
+- a validated GPU path for the Ubuntu guest
 
-```powershell
-wsl --install
-```
+This repository assumes the first VMware milestone still exposes `nvidia-smi` inside the Linux guest. If the guest cannot see the NVIDIA GPU, stop there before attempting the cluster bootstrap.
 
-If WSL is already installed but Ubuntu is not:
+## Build the Ubuntu guest with Packer
 
-```powershell
-wsl --install -d Ubuntu
-```
-
-Inside Ubuntu, enable systemd:
-
-```sh
-sudo tee /etc/wsl.conf > /dev/null <<'EOF'
-[boot]
-systemd=true
-EOF
-```
-
-Then restart WSL from PowerShell:
-
-```powershell
-wsl --shutdown
-wsl
-```
-
-Verify:
-
-```sh
-systemctl is-system-running
-```
-
-## Bootstrap OpenClaw on k3s
-
-Clone the repository inside WSL2:
+Clone the repository on the machine that will run Packer and Ansible:
 
 ```sh
 git clone https://github.com/9renpoto/homelabs.git
 cd homelabs
 ```
 
-Run the full bootstrap from Ansible:
+Render the autoinstall user-data with your SSH public key:
+
+```sh
+export PACKER_SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)"
+./infra/packer/render-user-data.sh
+cp infra/packer/variables.pkrvars.hcl.example infra/packer/variables.pkrvars.hcl
+```
+
+Update `infra/packer/variables.pkrvars.hcl` with the Ubuntu ISO URL, checksum, output directory, and SSH private key path, then build the VM template:
+
+```sh
+./infra/packer/build-vmware-template.sh infra/packer/variables.pkrvars.hcl
+```
+
+The tracked Packer scaffold intentionally keeps generated `infra/packer/http/user-data` outside Git because it contains machine-local SSH material.
+
+## Bootstrap OpenClaw on k3s
+
+After the VMware guest is running and reachable by SSH, update `ansible/inventory/vmware.ini` with the guest IP address and operator username, then run the full bootstrap:
 
 ```sh
 brew install pipx
@@ -77,7 +69,7 @@ pipx install --force ansible-core==2.18.7
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 cd ansible
-~/.local/bin/ansible-playbook -K playbooks/wsl-openclaw-bootstrap.yml
+~/.local/bin/ansible-playbook -K playbooks/vmware-openclaw-bootstrap.yml
 cd ..
 ```
 
@@ -88,7 +80,7 @@ The main Ansible playbook:
 - installs k3s when it is missing
 - installs the NVIDIA container runtime packages idempotently
 - restarts k3s only when package state changes
-- verifies that k3s rendered the `nvidia` runtime and `RuntimeClass`
+- requires visible NVIDIA tooling before continuing and verifies that k3s rendered the `nvidia` runtime and `RuntimeClass`
 - installs ArgoCD
 - applies `openclaw-core-env` when a local secret directory exists
 - bootstraps ArgoCD against this repository
@@ -97,7 +89,7 @@ The narrower host-only GPU step is available when you only want to refresh NVIDI
 
 ```sh
 cd ansible
-~/.local/bin/ansible-playbook -K playbooks/wsl-k3s-gpu.yml
+~/.local/bin/ansible-playbook -K playbooks/vmware-k3s-gpu.yml
 cd ..
 ```
 
@@ -182,6 +174,27 @@ Browse to `http://127.0.0.1:3000` and send the first message.
 
 ## Repository validation
 
+Existing repository safety checks:
+
+```sh
+shellcheck infra/k8s/*.sh
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+cd ansible
+~/.local/bin/ansible-playbook --syntax-check playbooks/vmware-k3s-gpu.yml
+~/.local/bin/ansible-playbook --syntax-check playbooks/vmware-openclaw-bootstrap.yml
+cd ..
+```
+
+Optional Packer scaffold checks when `packer` is installed:
+
+```sh
+export PACKER_SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)"
+./infra/packer/render-user-data.sh
+packer fmt -check infra/packer
+packer validate -var-file=infra/packer/variables.pkrvars.hcl infra/packer/ubuntu-openclaw.pkr.hcl
+```
+
 Render the tracked Kustomize trees:
 
 ```sh
@@ -199,8 +212,8 @@ docker run --rm -v "$PWD:/work" -w /work openpolicyagent/conftest:v0.58.0 test -
 shellcheck infra/k8s/*.sh
 pipx install --force ansible-core==2.18.7
 cd ansible
-~/.local/bin/ansible-playbook --syntax-check playbooks/wsl-k3s-gpu.yml
-~/.local/bin/ansible-playbook --syntax-check playbooks/wsl-openclaw-bootstrap.yml
+~/.local/bin/ansible-playbook --syntax-check playbooks/vmware-k3s-gpu.yml
+~/.local/bin/ansible-playbook --syntax-check playbooks/vmware-openclaw-bootstrap.yml
 cd ..
 ```
 
