@@ -5,5 +5,6 @@ output_directory     = "output-openclaw-k3s"
 cpus                 = 8
 memory               = 32768
 disk_size_mb         = 131072
+enable_nested_virtualization = false
 ssh_username         = "ubuntu"
 ssh_private_key_file = "/absolute/path/to/id_ed25519"

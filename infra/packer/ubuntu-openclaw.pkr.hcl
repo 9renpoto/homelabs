@@ -59,6 +59,11 @@ variable "ssh_private_key_file" {
   type = string
 }
 
+variable "enable_nested_virtualization" {
+  type    = bool
+  default = false
+}
+
 source "vmware-iso" "ubuntu" {
   vm_name              = var.vm_name
   guest_os_type        = "ubuntu-64"
@@ -77,18 +82,30 @@ source "vmware-iso" "ubuntu" {
   iso_url              = var.iso_url
   iso_checksum         = var.iso_checksum
   boot_wait            = "5s"
+  boot_key_interval    = "50ms"
+  boot_keygroup_interval = "500ms"
   shutdown_command     = "sudo shutdown -P now"
+
+  # Attach user-data and meta-data as a cidata ISO so the installer detects
+  # autoinstall automatically without needing kernel command-line manipulation.
+  cd_files = [
+    "${path.root}/http/user-data",
+    "${path.root}/http/meta-data",
+  ]
+  cd_label = "cidata"
 
   vmx_data = {
     "displayName" = var.vm_name
-    "vhv.enable"  = "TRUE"
+    "vhv.enable"  = var.enable_nested_virtualization ? "TRUE" : "FALSE"
   }
 
+  # Boot default GRUB entry; cidata ISO provides autoinstall config.
+  # Without 'autoinstall' on the kernel command line, subiquity asks for
+  # confirmation once — answer automatically after the installer has started.
   boot_command = [
-    "<esc><wait>",
-    "linux /casper/vmlinuz --- autoinstall ds=nocloud-net\\;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/<enter>",
-    "initrd /casper/initrd<enter>",
-    "boot<enter>"
+    "<enter>",
+    "<wait90>",
+    "yes<enter>"
   ]
 }
 
