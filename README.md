@@ -51,7 +51,28 @@ export PACKER_SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)"
 cp infra/packer/variables.pkrvars.hcl.example infra/packer/variables.pkrvars.hcl
 ```
 
-Update `infra/packer/variables.pkrvars.hcl` with the Ubuntu ISO URL, checksum, output directory, and SSH private key path, then build the VM template:
+Update `infra/packer/variables.pkrvars.hcl` with the Ubuntu ISO URL, checksum, output directory, and SSH private key path.
+
+If Packer will run on the Windows host while you keep the repository in WSL, generate a Windows-ready handoff after editing the vars file:
+
+```sh
+./infra/packer/render-windows-packer-handoff.sh infra/packer/variables.pkrvars.hcl
+```
+
+This generates machine-local files under `.tmp/`:
+
+- `.tmp/packer-windows.pkrvars.hcl`: rewrites WSL-only paths such as `ssh_private_key_file` into Windows-readable paths
+- `.tmp/packer-windows-build.ps1`: runs `packer init`, `fmt`, `validate`, and `build` on the Windows host against the generated vars file
+
+Then build the VM template on Windows PowerShell:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File "\\wsl.localhost\<DistroName>\path\to\homelabs\.tmp\packer-windows-build.ps1"
+```
+
+The helper also prints the exact command for the current WSL distro and repository path.
+
+If Packer itself runs inside WSL, keep using the existing wrapper:
 
 ```sh
 ./infra/packer/build-vmware-template.sh infra/packer/variables.pkrvars.hcl
@@ -190,6 +211,7 @@ Optional Packer scaffold checks when `packer` is installed:
 ```sh
 export PACKER_SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)"
 ./infra/packer/render-user-data.sh
+./infra/packer/render-windows-packer-handoff.sh infra/packer/variables.pkrvars.hcl
 packer fmt -check infra/packer
 packer validate -var-file=infra/packer/variables.pkrvars.hcl infra/packer/ubuntu-openclaw.pkr.hcl
 ```
