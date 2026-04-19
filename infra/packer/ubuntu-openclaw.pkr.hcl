@@ -65,26 +65,26 @@ variable "enable_nested_virtualization" {
 }
 
 source "vmware-iso" "ubuntu" {
-  vm_name              = var.vm_name
-  guest_os_type        = "ubuntu-64"
-  communicator         = "ssh"
-  ssh_username         = var.ssh_username
-  ssh_private_key_file = var.ssh_private_key_file
-  ssh_timeout          = "45m"
-  cpus                 = var.cpus
-  memory               = var.memory
-  disk_size            = var.disk_size_mb
-  network_adapter_type = var.network_adapter_type
-  headless             = var.headless
-  output_directory     = var.output_directory
-  format               = "vmx"
-  http_directory       = "${path.root}/http"
-  iso_url              = var.iso_url
-  iso_checksum         = var.iso_checksum
-  boot_wait            = "5s"
-  boot_key_interval    = "50ms"
+  vm_name                = var.vm_name
+  guest_os_type          = "ubuntu-64"
+  communicator           = "ssh"
+  ssh_username           = var.ssh_username
+  ssh_private_key_file   = var.ssh_private_key_file
+  ssh_timeout            = "45m"
+  cpus                   = var.cpus
+  memory                 = var.memory
+  disk_size              = var.disk_size_mb
+  network_adapter_type   = var.network_adapter_type
+  headless               = var.headless
+  output_directory       = var.output_directory
+  format                 = "vmx"
+  http_directory         = "${path.root}/http"
+  iso_url                = var.iso_url
+  iso_checksum           = var.iso_checksum
+  boot_wait              = "5s"
+  boot_key_interval      = "50ms"
   boot_keygroup_interval = "500ms"
-  shutdown_command     = "sudo shutdown -P now"
+  shutdown_command       = "sudo shutdown -P now"
 
   # Attach user-data and meta-data as a cidata ISO so the installer detects
   # autoinstall automatically without needing kernel command-line manipulation.
