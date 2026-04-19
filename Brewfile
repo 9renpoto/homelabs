@@ -1,6 +1,5 @@
 brew "ansible"
 brew "ansible-lint"
-brew "packer"
 brew "shellcheck"
 brew "typos"
 brew "gitleaks"

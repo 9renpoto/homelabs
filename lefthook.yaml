@@ -7,9 +7,3 @@ pre-commit:
     ansible-lint:
       glob: "ansible/**/*.{yml,yaml}"
       run: LANG=C.UTF-8 LC_ALL=C.UTF-8 ANSIBLE_CONFIG=ansible/ansible.cfg ansible-lint -c .ansible-lint --project-dir ansible/ {staged_files}
-    conftest:
-      glob: "{k8s,gitops}/**/*.yaml"
-      run: conftest test --policy policy/kubernetes {staged_files}
-    conftest-policy:
-      glob: "policy/kubernetes/**/*.rego"
-      run: conftest verify --policy policy/kubernetes

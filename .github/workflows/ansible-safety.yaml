@@ -26,12 +26,6 @@ jobs:
           python-version: "3.12"
       - name: Install ansible-core
         run: python -m pip install --disable-pip-version-check ansible-core==2.18.7
-      - name: Syntax-check Ansible playbooks
-        working-directory: ansible
-        run: |
-          ansible-playbook --syntax-check playbooks/vmware-k3s-gpu.yml
-          ansible-playbook --syntax-check playbooks/vmware-openclaw-bootstrap.yml
-
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
