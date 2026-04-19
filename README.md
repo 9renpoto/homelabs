@@ -51,7 +51,17 @@ export PACKER_SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)"
 cp infra/packer/variables.pkrvars.hcl.example infra/packer/variables.pkrvars.hcl
 ```
 
+On PowerShell, set the same environment variable without keeping the trailing newline:
+
+```powershell
+$env:PACKER_SSH_PUBLIC_KEY = (Get-Content "$HOME\.ssh\id_ed25519.pub" -Raw).Trim()
+bash ./infra/packer/render-user-data.sh
+Copy-Item infra\packer\variables.pkrvars.hcl.example infra\packer\variables.pkrvars.hcl
+```
+
 Update `infra/packer/variables.pkrvars.hcl` with the Ubuntu ISO URL, checksum, output directory, and SSH private key path.
+
+Nested virtualization is disabled by default. Only set `enable_nested_virtualization = true` when the host VMware stack supports virtualized AMD-V/Intel VT-x for the guest.
 
 If Packer will run on the Windows host while you keep the repository in WSL, generate a Windows-ready handoff after editing the vars file:
 

@@ -36,6 +36,7 @@ declare -A vars=()
 declare -a encountered_keys=()
 
 while IFS= read -r line; do
+  line="${line%$'\r'}"
   [[ "${line}" =~ ^[[:space:]]*$ ]] && continue
   [[ "${line}" =~ ^[[:space:]]*# ]] && continue
   [[ "${line}" =~ ^[[:space:]]*// ]] && continue
@@ -65,9 +66,21 @@ fi
 
 strip_quotes() {
   local value="$1"
-  if [[ "${value}" =~ ^\"(.*)\"$ ]]; then
-    printf '%s\n' "${BASH_REMATCH[1]}"
+  local first_char
+  local last_char
+
+  if [[ "${#value}" -lt 2 ]]; then
+    printf '%s\n' "${value}"
     return
+  fi
+
+  first_char="${value:0:1}"
+  last_char="${value: -1}"
+
+  if [[ "${first_char}" == '"' && "${last_char}" == '"' ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "${first_char}" == "'" && "${last_char}" == "'" ]]; then
+    value="${value:1:${#value}-2}"
   fi
 
   printf '%s\n' "${value}"
@@ -162,14 +175,16 @@ declare -A emitted=()
   echo "# Source: ${vars_file}"
   for key in "${ordered_keys[@]}"; do
     if [[ -n "${vars[${key}]:-}" ]]; then
-      printf '%s = %s\n' "${key}" "$(rewrite_value_for_windows "${key}" "${vars[${key}]}")"
+      rewritten_value="$(rewrite_value_for_windows "${key}" "${vars[${key}]}")"
+      printf '%s = %s\n' "${key}" "${rewritten_value}"
       emitted["${key}"]=1
     fi
   done
 
   for key in "${encountered_keys[@]}"; do
     if [[ -z "${emitted[${key}]:-}" ]]; then
-      printf '%s = %s\n' "${key}" "$(rewrite_value_for_windows "${key}" "${vars[${key}]}")"
+      rewritten_value="$(rewrite_value_for_windows "${key}" "${vars[${key}]}")"
+      printf '%s = %s\n' "${key}" "${rewritten_value}"
       emitted["${key}"]=1
     fi
   done
