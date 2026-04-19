@@ -12,3 +12,5 @@ infra/packer/output-*/
 infra/packer/http/user-data
 infra/packer/*.pkrvars.hcl
 !infra/packer/*.pkrvars.hcl.example
+packer_cache/
+output-openclaw-k3s/

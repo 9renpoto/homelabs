@@ -4,18 +4,28 @@ This roadmap reflects the active direction of the repository today.
 
 ## Current direction
 
-- Run OpenClaw core on single-node k3s inside an Ubuntu guest on VMware Workstation Pro.
-- Build the guest image with Packer and bootstrap the host with Ansible.
-- Deliver cluster resources with Kustomize and ArgoCD.
+- Run NemoClaw + Ollama on single-node k3s inside WSL2 (Ubuntu) on Windows.
+- Bootstrap WSL2 with Ansible and deliver cluster resources with Kustomize and ArgoCD.
+- Use WSL2 native NVIDIA CUDA support for GPU-backed Ollama inference.
 - Keep the repository public and keep secrets, kubeconfig, backups, and mutable state outside Git.
 
 ## Current scope
 
-- `infra/packer/ubuntu-openclaw.pkr.hcl` is the guest-image entrypoint.
-- `ansible/playbooks/vmware-openclaw-bootstrap.yml` is the primary bootstrap entrypoint.
+- `ansible/playbooks/wsl-openclaw-bootstrap.yml` will be the primary bootstrap entrypoint (to be added).
 - `gitops/argocd/` bootstraps ArgoCD from this repository.
-- `k8s/openclaw-core/base/` deploys OpenClaw core and in-cluster Ollama.
+- `k8s/openclaw-core/base/` deploys NemoClaw and in-cluster Ollama (NemoClaw migration pending).
 - `k8s/nvidia-device-plugin/base/` provides GPU device discovery for Ollama.
+
+## Deployment path
+
+```
+Windows host
+  └─ WSL2 Ubuntu (NVIDIA CUDA via Windows driver shim)
+       └─ Ansible bootstrap
+            └─ k3s
+                 └─ ArgoCD (GitOps from this repo)
+                      └─ NemoClaw + Ollama
+```
 
 ## Working principles
 
@@ -26,11 +36,11 @@ This roadmap reflects the active direction of the repository today.
 
 ## Current priorities
 
-1. Keep the VMware Workstation Pro -> Packer -> Ansible -> k3s -> ArgoCD bootstrap path repeatable.
-2. Validate NVIDIA visibility inside the Ubuntu guest before treating the VMware path as ready.
-3. Keep the local secret-directory workflow for `openclaw-core-env` stable.
-4. Keep render, schema, policy, and script checks aligned with the live bootstrap path.
-5. Keep OpenClaw core and Ollama healthy on the GPU-backed k3s node.
+1. Implement Ansible bootstrap playbook for WSL2 (`wsl-openclaw-bootstrap.yml`).
+2. Validate NVIDIA CUDA visibility inside WSL2 before treating the path as ready.
+3. Migrate k8s manifests from OpenClaw to NemoClaw.
+4. Keep the local secret-directory workflow for `openclaw-core-env` stable.
+5. Keep render, schema, policy, and script checks aligned with the live bootstrap path.
 
 ## Deferred items
 
@@ -42,5 +52,6 @@ This roadmap reflects the active direction of the repository today.
 ## Success state
 
 - `openclaw-bootstrap`, `nvidia-device-plugin`, and `openclaw-core` are `Synced` and `Healthy`.
-- `openclaw-system` contains healthy `ollama` and `openclaw` deployments.
+- `openclaw-system` contains healthy `ollama` and `nemoclaw` deployments.
+- `nvidia-smi` is visible inside WSL2 and GPU is allocatable in k3s.
 - The repository can render and validate the bootstrap path before rollout.
