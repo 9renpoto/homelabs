@@ -29,8 +29,7 @@ jobs:
       - name: Syntax-check Ansible playbooks
         working-directory: ansible
         run: |
-          ansible-playbook --syntax-check playbooks/vmware-k3s-gpu.yml
-          ansible-playbook --syntax-check playbooks/vmware-openclaw-bootstrap.yml
+          echo "No playbooks to syntax-check yet (bootstrap playbook pending)"
 
   lint:
     runs-on: ubuntu-latest

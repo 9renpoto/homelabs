@@ -4,17 +4,15 @@ This roadmap reflects the active direction of the repository today.
 
 ## Current direction
 
-- Run NemoClaw + Ollama on single-node k3s inside WSL2 (Ubuntu) on Windows.
-- Bootstrap WSL2 with Ansible and deliver cluster resources with Kustomize and ArgoCD.
+- Run NemoClaw + Ollama on Docker Engine inside WSL2 (Ubuntu) on Windows.
+- Bootstrap WSL2 with Ansible.
 - Use WSL2 native NVIDIA CUDA support for GPU-backed Ollama inference.
 - Keep the repository public and keep secrets, kubeconfig, backups, and mutable state outside Git.
 
 ## Current scope
 
-- `ansible/playbooks/wsl-openclaw-bootstrap.yml` will be the primary bootstrap entrypoint (to be added).
-- `gitops/argocd/` bootstraps ArgoCD from this repository.
-- `k8s/openclaw-core/base/` deploys NemoClaw and in-cluster Ollama (NemoClaw migration pending).
-- `k8s/nvidia-device-plugin/base/` provides GPU device discovery for Ollama.
+- `ansible/playbooks/wsl-nemoclaw-bootstrap.yml` will be the primary bootstrap entrypoint (to be added).
+- `ansible/roles/` will contain Docker Engine, nvidia-container-toolkit, and NemoClaw roles (to be added).
 
 ## Deployment path
 
@@ -22,9 +20,8 @@ This roadmap reflects the active direction of the repository today.
 Windows host
   └─ WSL2 Ubuntu (NVIDIA CUDA via Windows driver shim)
        └─ Ansible bootstrap
-            └─ k3s
-                 └─ ArgoCD (GitOps from this repo)
-                      └─ NemoClaw + Ollama
+            └─ Docker Engine + nvidia-container-toolkit
+                 └─ NemoClaw + Ollama (GPU)
 ```
 
 ## Working principles
@@ -36,11 +33,9 @@ Windows host
 
 ## Current priorities
 
-1. Implement Ansible bootstrap playbook for WSL2 (`wsl-openclaw-bootstrap.yml`).
-2. Validate NVIDIA CUDA visibility inside WSL2 before treating the path as ready.
-3. Migrate k8s manifests from OpenClaw to NemoClaw.
-4. Keep the local secret-directory workflow for `openclaw-core-env` stable.
-5. Keep render, schema, policy, and script checks aligned with the live bootstrap path.
+1. Implement Ansible bootstrap playbook for WSL2 (`wsl-nemoclaw-bootstrap.yml`).
+2. Validate NVIDIA CUDA visibility inside WSL2 Docker before treating the path as ready.
+3. Implement Ansible roles: `docker_engine`, `nvidia_docker`, `nemoclaw`.
 
 ## Deferred items
 
@@ -51,7 +46,6 @@ Windows host
 
 ## Success state
 
-- `openclaw-bootstrap`, `nvidia-device-plugin`, and `openclaw-core` are `Synced` and `Healthy`.
-- `openclaw-system` contains healthy `ollama` and `nemoclaw` deployments.
-- `nvidia-smi` is visible inside WSL2 and GPU is allocatable in k3s.
-- The repository can render and validate the bootstrap path before rollout.
+- `nvidia-smi` is visible inside a Docker container in WSL2.
+- Ollama starts with GPU access and responds to inference requests.
+- NemoClaw CLI connects to Ollama and the first chat succeeds.
