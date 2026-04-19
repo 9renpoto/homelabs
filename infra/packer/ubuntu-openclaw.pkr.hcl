@@ -64,6 +64,39 @@ variable "enable_nested_virtualization" {
   default = false
 }
 
+variable "enable_gpu_passthrough" {
+  type        = bool
+  default     = false
+  description = "Enable PCI passthrough for the NVIDIA GPU. Requires gpu_pci_id to be set."
+}
+
+variable "gpu_pci_id" {
+  type        = string
+  default     = ""
+  description = "Host PCI device address of the NVIDIA GPU (e.g. '0000:03:00.0'). Required when enable_gpu_passthrough is true."
+}
+
+locals {
+  gpu_vmx = var.enable_gpu_passthrough ? {
+    # Allow 64-bit MMIO range needed by modern NVIDIA GPUs.
+    "pciPassthru.use64bitMMIO"    = "TRUE"
+    "pciPassthru.64bitMMIOSizeGB" = "64"
+    # Passthrough slot 0: the NVIDIA GPU.
+    "pciPassthru0.present" = "TRUE"
+    "pciPassthru0.id"      = var.gpu_pci_id
+    # Hide hypervisor signature so NVIDIA driver accepts the device.
+    "hypervisor.cpuid.v0" = "FALSE"
+  } : {}
+
+  vmx_data = merge(
+    {
+      "displayName" = var.vm_name
+      "vhv.enable"  = var.enable_nested_virtualization ? "TRUE" : "FALSE"
+    },
+    local.gpu_vmx
+  )
+}
+
 source "vmware-iso" "ubuntu" {
   vm_name                = var.vm_name
   guest_os_type          = "ubuntu-64"
@@ -94,10 +127,7 @@ source "vmware-iso" "ubuntu" {
   ]
   cd_label = "cidata"
 
-  vmx_data = {
-    "displayName" = var.vm_name
-    "vhv.enable"  = var.enable_nested_virtualization ? "TRUE" : "FALSE"
-  }
+  vmx_data = local.vmx_data
 
   # Boot default GRUB entry; cidata ISO provides autoinstall config.
   # Without 'autoinstall' on the kernel command line, subiquity asks for
