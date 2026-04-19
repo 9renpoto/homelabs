@@ -1,3 +1,7 @@
 ---
 nvidia_smi_shim_source_path: ""
 nvidia_smi_shim_dest_path: /usr/local/bin/nvidia-smi
+
+# Set to false to skip automatic NVIDIA driver installation
+# (e.g. when drivers are pre-installed or delivered via cloud-init).
+nvidia_driver_autoinstall: true

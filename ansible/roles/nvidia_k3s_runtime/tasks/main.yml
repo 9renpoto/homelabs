@@ -1,4 +1,36 @@
 ---
+# GPU Driver Installation
+- name: Check if NVIDIA driver is already installed
+  ansible.builtin.command: nvidia-smi
+  register: nvidia_smi_pre
+  failed_when: false
+  changed_when: false
+
+- name: Install ubuntu-drivers-common for driver detection
+  ansible.builtin.apt:
+    name: ubuntu-drivers-common
+    state: present
+    update_cache: true
+  when:
+    - nvidia_driver_autoinstall | bool
+    - nvidia_smi_pre.rc != 0
+
+- name: Install recommended NVIDIA GPU driver
+  ansible.builtin.command: ubuntu-drivers autoinstall
+  register: nvidia_driver_install
+  changed_when: nvidia_driver_install.rc == 0
+  when:
+    - nvidia_driver_autoinstall | bool
+    - nvidia_smi_pre.rc != 0
+
+- name: Reboot to load NVIDIA kernel module
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+  when:
+    - nvidia_driver_install is defined
+    - nvidia_driver_install is changed
+
+# Shim / Verification
 - name: Check optional NVIDIA shim source
   ansible.builtin.stat:
     path: "{{ nvidia_smi_shim_source_path }}"
