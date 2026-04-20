@@ -4,24 +4,20 @@ Use `AGENTS.md` at the repository root as the primary source of truth for this r
 
 Key reminders mirrored here for Copilot sessions:
 
-- The repo is centered on the preferred single-node VMware Workstation Pro + k3s + ArgoCD deployment path.
+- The repo is centered on the **WSL2 + Docker Engine + NVIDIA GPU + NemoClaw + Ollama** path.
 - Even though deployment targets one Windows-hosted homelab machine, prefer production-adjacent technology choices and infrastructure changes that can be validated in-repo.
-- Use Packer for VMware guest-image creation, Ansible for guest bootstrap automation, and Kustomize + ArgoCD for cluster delivery.
-- Never commit secrets, tracked `.env` files, Kubernetes `Secret` manifests with real values, VM-local secret files, backups, or snapshots.
-- Runtime secret application is handled outside Git with `infra/k8s/apply-openclaw-core-secret.sh` and a local `/etc/openclaw/openclaw-core-secret/` directory.
+- Use Ansible for WSL2 bootstrap automation and Docker for container runtime.
+- Never commit secrets, tracked `.env` files, or backups.
+- Runtime secret application is handled outside Git under a local `/etc/openclaw/openclaw-core-secret/` directory.
 - Use Japanese in chat with the user, but write commit messages, pull request text, and review comments in English.
 
 Common commands:
 
 ```sh
-export PACKER_SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)"
-./infra/packer/render-user-data.sh
-packer fmt -check infra/packer
-packer validate -var-file=infra/packer/variables.pkrvars.hcl infra/packer/ubuntu-openclaw.pkr.hcl
-docker run --rm -v "$PWD:/work" -w /work registry.k8s.io/kubectl:v1.31.0 kustomize k8s/openclaw-core/base
-docker run --rm -v "$PWD:/work" -w /work registry.k8s.io/kubectl:v1.31.0 kustomize k8s/nvidia-device-plugin/base
-docker run --rm -v "$PWD:/work" -w /work registry.k8s.io/kubectl:v1.31.0 kustomize gitops/argocd
-docker run --rm -v "$PWD:/work" -w /work ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary -ignore-missing-schemas .tmp/openclaw-core.rendered.yaml .tmp/nvidia-device-plugin.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml
-docker run --rm -v "$PWD:/work" -w /work openpolicyagent/conftest:v0.58.0 test --policy policy/kubernetes .tmp/openclaw-core.rendered.yaml .tmp/nvidia-device-plugin.rendered.yaml .tmp/argocd-bootstrap.rendered.yaml gitops/argocd/applications/openclaw-bootstrap.yaml
-shellcheck infra/k8s/*.sh
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+cd ansible
+ansible-lint
+cd ..
+typos
 ```

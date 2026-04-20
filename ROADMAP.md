@@ -37,13 +37,6 @@ Windows host
 2. Validate NVIDIA CUDA visibility inside WSL2 Docker before treating the path as ready.
 3. Implement Ansible roles: `docker_engine`, `nvidia_docker`, `nemoclaw`.
 
-## Deferred items
-
-- Redis remains out of scope for the active path.
-- SearXNG remains out of scope for the active path.
-- Discord integration remains out of scope for the active path.
-- Backup and restore remain operator-only helpers, not the primary operating model.
-
 ## Success state
 
 - `nvidia-smi` is visible inside a Docker container in WSL2.

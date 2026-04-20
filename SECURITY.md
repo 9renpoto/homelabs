@@ -21,4 +21,4 @@ Include:
 
 ## Secret handling
 
-Never commit real credentials, tracked `.env` files, Kubernetes `Secret` manifests with real values, VM-local secret files, kubeconfig files, or backup archives.
+Never commit real credentials, tracked `.env` files, VM-local secret files, or backup archives.

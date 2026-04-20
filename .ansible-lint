@@ -25,6 +25,3 @@ enable_list:
 
 exclude_paths:
   - .github/
-  - k8s/
-  - gitops/
-  - infra/k8s/
