@@ -1,25 +1,19 @@
 # homelabs
 
-Kubernetes-first homelab infrastructure for bringing up **NemoClaw + Ollama** on single-node k3s inside **WSL2** on Windows, with GPU-backed inference via the native NVIDIA CUDA support in WSL2 and the cluster bootstrapped by Ansible and ArgoCD from this public repository.
+Infrastructure for bringing up **NemoClaw + Ollama** inside **WSL2** on Windows, with GPU-backed inference via the native NVIDIA CUDA support in WSL2 and the environment bootstrapped by Ansible from this public repository.
 
 ## Deployment path
 
 - **Bootstrap:** Windows host → WSL2 Ubuntu (NVIDIA CUDA) → Ansible → Docker Engine → NemoClaw + Ollama
-- **Workload:** NemoClaw CLI with GPU-backed Ollama (Docker コンテナ)
-- **Out of scope for the active path:** Kubernetes, ArgoCD, Redis, SearXNG, Discord integration
+- **Workload:** NemoClaw CLI with GPU-backed Ollama (Docker container)
 
-The repository remains public, so runtime secrets, kubeconfig, mutable state, and backups must stay outside Git.
-
-## Why WSL2
-
-A single NVIDIA GeForce GPU cannot be passed through to a VMware Workstation Pro VM while Windows is using that GPU for display. WSL2 solves this cleanly: Windows retains the GPU for the host display, and the WSL2 Ubuntu instance accesses CUDA through the Windows NVIDIA driver shim at `/usr/lib/wsl/lib/`.
+The repository remains public, so runtime secrets, mutable state, and backups must stay outside Git.
 
 ## Repository layout
 
 Primary bootstrap and delivery assets:
 
 - `ansible/` — Docker + NVIDIA + NemoClaw bootstrap (playbook to be added)
-- `ansible/roles/openclaw_secret/` — local secret directory management
 
 ## Windows host prerequisites
 
