@@ -1,0 +1,7 @@
+---
+# Docker Engine installation and configuration for WSL2
+# Installs Docker Engine, enables daemon, verifies socket
+
+docker_enable_service: true
+docker_group: docker
+docker_socketpath: /var/run/docker.sock

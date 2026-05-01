@@ -1,0 +1,41 @@
+---
+# WSL2 Bootstrap Playbook (Minimal, CLI-first)
+# Installs Docker Engine and NVIDIA Container Toolkit only
+# NemoClaw CLI and Ollama are installed manually (see README)
+# Run: ansible-playbook playbooks/wsl-nemoclaw-bootstrap.yml
+
+- name: Bootstrap WSL2 with Docker and NVIDIA support
+  hosts: localhost
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Verify GPU visibility
+      ansible.builtin.command:
+        cmd: nvidia-smi
+      register: nvidia_check
+      changed_when: false
+
+  roles:
+    - role: docker_engine
+      tags:
+        - docker
+        - bootstrap
+
+    - role: nvidia_docker
+      tags:
+        - nvidia
+        - docker
+        - bootstrap
+
+    - role: openclaw_secret
+      tags:
+        - secrets
+        - bootstrap
+
+  post_tasks:
+    - name: Summary
+      ansible.builtin.debug:
+        msg: |
+          Docker + NVIDIA setup complete.
+          See README.md for NemoClaw CLI installation.
