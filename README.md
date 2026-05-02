@@ -84,7 +84,7 @@ echo 'systemd=true' | sudo tee -a /etc/wsl.conf
 nvidia-smi
 ```
 
-### Step 2: Bootstrap Docker + NVIDIA (Ansible)
+### Step 2: Bootstrap Docker + NVIDIA
 
 Inside WSL2:
 
@@ -92,8 +92,7 @@ Inside WSL2:
 git clone https://github.com/9renpoto/homelabs.git
 cd homelabs
 brew bundle
-export LANG=C.UTF-8 LC_ALL=C.UTF-8
-cd ansible && ansible-playbook playbooks/wsl-nemoclaw-bootstrap.yml && cd ..
+sudo infra/bootstrap.sh
 ```
 
 **Result:** Docker daemon running, GPU visible inside containers.

@@ -1,7 +1,0 @@
----
-# NVIDIA Container Toolkit installation for Docker GPU support
-# Configures Docker daemon to use nvidia runtime by default
-
-nvidia_docker_version: latest
-nvidia_container_toolkit_gpg_key: https://nvidia.github.io/libnvidia-container/gpgkey
-nvidia_docker_daemon_config_path: /etc/docker/daemon.json
