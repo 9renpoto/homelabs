@@ -6,14 +6,6 @@ This file is the primary source of truth for AI assistant guidance in this repos
 
 This repository is centered on the **WSL2 + Docker Engine + NVIDIA GPU + NemoClaw + Ollama** path.
 
-### Shell and repository checks
-
-```sh
-shellcheck infra/*.sh 2>/dev/null || true
-typos
-gitleaks git --pre-commit --staged --no-banner .
-```
-
 ## High-level architecture
 
 - The deployment path is **WSL2 Ubuntu on a Windows host**, with GPU compute accessed via the native NVIDIA CUDA support in WSL2 (Windows NVIDIA driver shim at `/usr/lib/wsl/lib/`).
