@@ -1,4 +1,4 @@
 brew "docker"
-brew "docker-compose"
-brew "containerd"
-brew "nvidia-container-toolkit"
+brew "docker-engine"
+brew "rootlesskit"
+brew "slirp4netns"
